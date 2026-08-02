@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useLocale } from "@/hooks/useLocale";
 import type { Locale } from "@/i18n/locale";
 import { translations } from "@/i18n/translations";
+import { normalizePhone, splitPhone } from "@/lib/patient-values";
 import { createSocket, type AppSocket } from "@/lib/socket";
 import type { PatientData, PatientStatus, TimelineItem } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,19 @@ type Field = {
   highlight?: keyof PatientData;
   wide?: boolean;
 };
+const editableFields = new Set<keyof PatientData>([
+  "firstName",
+  "lastName",
+  "middleName",
+  "dateOfBirth",
+  "email",
+  "phone",
+  "nationality",
+  "religion",
+  "emergencyName",
+  "emergencyPhone",
+  "emergencyRelationship"
+]);
 
 function staffSections(locale: Locale): { title: string; icon: typeof UserRound; fields: Field[]; columns: string }[] {
   const fields = translations[locale].fields;
@@ -104,7 +118,7 @@ export function StaffView() {
   const [highlightedField, setHighlightedField] = useState<TimelineItem["field"]>();
   const { locale, setLocale } = useLocale();
   const text = staffText[locale];
-  const { sessions, selectedSessionId, snapshot, setSessions, upsertSummary, selectSession, setSnapshot } = useStaffStore();
+  const { sessions, selectedSessionId, snapshot, setSessions, upsertSummary, selectSession, setSnapshot, removeSession } = useStaffStore();
 
   useEffect(() => {
     const next = createSocket();
@@ -123,11 +137,12 @@ export function StaffView() {
     });
     next.on("patient:submit", setSnapshot);
     next.on("patient:clear", setSnapshot);
+    next.on("staff:delete", ({ sessionId }) => removeSession(sessionId));
     next.on("session:unavailable", () => setSnapshot(null));
     return () => {
       next.disconnect();
     };
-  }, [setSessions, setSnapshot, upsertSummary]);
+  }, [removeSession, setSessions, setSnapshot, upsertSummary]);
 
   useEffect(() => {
     const id = params.get("session");
@@ -149,6 +164,20 @@ export function StaffView() {
     selectSession(sessionId);
     window.history.replaceState(null, "", `/staff?session=${sessionId}`);
     socket.current?.emit("session:selected", { sessionId });
+  }
+
+  function deleteSession(sessionId: string) {
+    if (!window.confirm(text.deleteConfirm)) return;
+    socket.current?.emit("staff:delete", { sessionId });
+    removeSession(sessionId);
+  }
+
+  function editField(field: keyof PatientData, label: string, currentValue = "") {
+    if (!selectedSessionId) return;
+    const nextValue = window.prompt(`${text.editPrompt} ${label}`, currentValue);
+    if (nextValue === null) return;
+    const data: PatientData = field === "phone" || field === "emergencyPhone" ? makePhoneUpdate(field, nextValue) : { [field]: nextValue };
+    socket.current?.emit("staff:update", { sessionId: selectedSessionId, data });
   }
 
   const visible = useMemo(() => {
@@ -186,8 +215,8 @@ export function StaffView() {
         </div>
 
         <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(500px,1fr)_minmax(280px,340px)]">
-          <aside className="no-print rounded-2xl border bg-white shadow-sm" aria-label={text.activeSessions}>
-            <div className="grid gap-3 border-b p-4">
+          <aside className="no-print flex min-h-0 flex-col rounded-2xl border bg-white shadow-sm lg:h-full" aria-label={text.activeSessions}>
+            <div className="shrink-0 grid gap-3 border-b p-4">
               <div>
                 <h2 className="font-semibold">{text.activeSessions}</h2>
                 <p className="text-sm text-slate-500">
@@ -199,11 +228,11 @@ export function StaffView() {
                 <Input className="pl-9" type="search" placeholder={text.search} aria-label={text.search} value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
             </div>
-            <div className="grid gap-2 overflow-auto p-3 lg:max-h-[calc(100dvh-286px)]" role="list" aria-live="polite">
+            <div className="grid min-h-0 content-start gap-2 overflow-y-auto p-3 lg:flex-1" role="list" aria-live="polite">
               {!sessions.length && <Empty title={text.noSessions} text={text.noSessionsText} />}
               {!!sessions.length && !visible.length && <Empty title={text.noMatches} />}
               {visible.map((session) => (
-                <div key={session.sessionId} role="listitem">
+                <div key={session.sessionId} role="listitem" className="grid gap-2">
                   <button
                     type="button"
                     aria-current={session.sessionId === selectedSessionId}
@@ -229,13 +258,21 @@ export function StaffView() {
                     </span>
                     <span className="text-xs text-slate-500">{formatStaffDateTime(session.lastUpdatedAt, locale)}</span>
                   </button>
+                  <div className="flex gap-2 px-1">
+                    <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => choose(session.sessionId)}>
+                      {text.edit}
+                    </Button>
+                    <Button type="button" variant="outline" className="h-8 px-2 text-xs text-red-700" onClick={() => deleteSession(session.sessionId)}>
+                      {text.delete}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </aside>
 
-          <section className="rounded-2xl border bg-white shadow-sm">
-            <Details highlightedField={highlightedField} locale={locale} />
+          <section className="min-w-0 rounded-2xl border bg-white shadow-sm">
+            <Details highlightedField={highlightedField} locale={locale} onEdit={editField} />
           </section>
 
           <aside className="no-print flex min-h-0 flex-col rounded-2xl border bg-white shadow-sm lg:col-span-2 lg:h-full xl:col-span-1">
@@ -282,7 +319,15 @@ function SummaryCards({ locale }: { locale: Locale }) {
   );
 }
 
-function Details({ highlightedField, locale }: { highlightedField?: TimelineItem["field"]; locale: Locale }) {
+function Details({
+  highlightedField,
+  locale,
+  onEdit
+}: {
+  highlightedField?: TimelineItem["field"];
+  locale: Locale;
+  onEdit: (field: keyof PatientData, label: string, currentValue?: string) => void;
+}) {
   const { sessions, selectedSessionId, snapshot, selectSession } = useStaffStore();
   const text = staffText[locale];
 
@@ -312,16 +357,17 @@ function Details({ highlightedField, locale }: { highlightedField?: TimelineItem
   return (
     <>
       <div className="no-print grid gap-3 border-b p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="min-w-0">
             <h2 className="text-2xl font-semibold">{summary.displayName}</h2>
             <p className="font-mono text-sm text-slate-600">
               {text.session} {summary.sessionId}
             </p>
           </div>
-          <StatusPill status={summary.status} locale={locale} />
+          <div className="shrink-0 pt-1">
+            <StatusPill status={summary.status} locale={locale} />
+          </div>
         </div>
-        <p className="text-sm text-slate-500">{formatStaffDateTime(summary.lastUpdatedAt, locale)}</p>
         {summary.submittedAt && (
           <p className="text-sm text-slate-500">
             {text.submittedAt}: {formatStaffDateTime(summary.submittedAt, locale)}
@@ -338,7 +384,7 @@ function Details({ highlightedField, locale }: { highlightedField?: TimelineItem
 
       <div className="grid gap-4 p-4 sm:p-5">
         {staffSections(locale).map((section) => (
-          <InfoSection key={section.title} section={section} data={data} status={summary.status} highlightedField={highlightedField} locale={locale} />
+          <InfoSection key={section.title} section={section} data={data} status={summary.status} highlightedField={highlightedField} locale={locale} onEdit={onEdit} />
         ))}
       </div>
     </>
@@ -350,13 +396,15 @@ function InfoSection({
   data,
   status,
   highlightedField,
-  locale
+  locale,
+  onEdit
 }: {
   section: ReturnType<typeof staffSections>[number];
   data: PatientData;
   status: PatientStatus;
   highlightedField?: TimelineItem["field"];
   locale: Locale;
+  onEdit: (field: keyof PatientData, label: string, currentValue?: string) => void;
 }) {
   const Icon = section.icon;
   return (
@@ -379,7 +427,18 @@ function InfoSection({
                 active && "border-blue-300 bg-blue-50"
               )}
             >
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{field.label}</dt>
+              <dt className="flex items-center justify-between gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span>{field.label}</span>
+                {field.highlight && editableFields.has(field.highlight) && (
+                  <button
+                    type="button"
+                    className="no-print rounded px-1.5 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-blue-700 hover:bg-blue-50"
+                    onClick={() => onEdit(field.highlight!, field.label, String(data[field.highlight!] || ""))}
+                  >
+                    {staffText[locale].edit}
+                  </button>
+                )}
+              </dt>
               <dd className="mt-1 break-words text-base font-semibold text-slate-950">{value}</dd>
             </div>
           );
@@ -403,6 +462,14 @@ function TimelineRow({ item, locale }: { item: TimelineItem; locale: Locale }) {
       </p>
     </div>
   );
+}
+
+function makePhoneUpdate(field: "phone" | "emergencyPhone", value: string): PatientData {
+  const phone = normalizePhone(value);
+  const parts = splitPhone(phone);
+  return field === "phone"
+    ? { phone, phoneCountryCode: parts.countryCode, phoneNationalNumber: parts.nationalNumber }
+    : { emergencyPhone: phone, emergencyPhoneCountryCode: parts.countryCode, emergencyPhoneNationalNumber: parts.nationalNumber };
 }
 
 function ConnectionBadge({ connected, locale }: { connected: boolean; locale: Locale }) {

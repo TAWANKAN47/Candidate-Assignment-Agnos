@@ -7,6 +7,7 @@ type StaffState = {
   snapshot: SessionSnapshot | null;
   setSessions: (sessions: SessionSummary[]) => void;
   upsertSummary: (summary: SessionSummary) => void;
+  removeSession: (sessionId: string) => void;
   selectSession: (sessionId: string) => void;
   setSnapshot: (snapshot: SessionSnapshot | null) => void;
 };
@@ -26,6 +27,12 @@ export const useStaffStore = create<StaffState>((set) => ({
         ? state.sessions.map((item) => (item.sessionId === summary.sessionId ? summary : item))
         : [summary, ...state.sessions],
       snapshot: state.snapshot?.summary.sessionId === summary.sessionId ? { ...state.snapshot, summary } : state.snapshot
+    })),
+  removeSession: (sessionId) =>
+    set((state) => ({
+      sessions: state.sessions.filter((item) => item.sessionId !== sessionId),
+      selectedSessionId: state.selectedSessionId === sessionId ? "" : state.selectedSessionId,
+      snapshot: state.snapshot?.summary.sessionId === sessionId ? null : state.snapshot
     })),
   selectSession: (selectedSessionId) => set({ selectedSessionId, snapshot: null }),
   setSnapshot: (snapshot) =>

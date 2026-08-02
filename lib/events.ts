@@ -10,6 +10,7 @@ export type ServerToClientEvents = {
   "patient:status": (payload: { sessionId: string; status: PatientStatus }) => void;
   "patient:submit": (payload: SessionSnapshot) => void;
   "patient:clear": (payload: SessionSnapshot) => void;
+  "staff:delete": (payload: { sessionId: string }) => void;
 };
 
 export type ClientToServerEvents = {
@@ -17,6 +18,8 @@ export type ClientToServerEvents = {
   "staff:join": () => void;
   "session:selected": (payload: { sessionId: string }) => void;
   "patient:update": (payload: { sessionId: string; data: PatientData }) => void;
+  "staff:update": (payload: { sessionId: string; data: PatientData }) => void;
+  "staff:delete": (payload: { sessionId: string }) => void;
   "patient:submit": (payload: { sessionId: string }) => void;
   "patient:clear": (payload: { sessionId: string }) => void;
 };

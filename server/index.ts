@@ -157,6 +157,33 @@ io.on("connection", (socket) => {
     socket.emit("session:list", list());
   });
 
+  socket.on("staff:update", (input) => {
+    const payload = patientUpdatePayloadSchema.safeParse(input);
+    if (!payload.success) return;
+    const session = sessions.get(payload.data.sessionId);
+    if (!session) return;
+    const nextData = { ...session.data };
+    applyPatientUpdate(nextData, payload.data.data);
+    const changed = changedFields(session.data, nextData).filter((field) => field !== "structuredAddress");
+    applyPatientUpdate(session.data, payload.data.data);
+    touch(session);
+    changed.forEach((field) => addTimeline(session, `${fieldLabels[field]} updated`, field));
+    io.to(`patient:${session.sessionId}`).emit("patient:update", snapshot(session));
+    io.to("staff:lobby").emit("session:summary-updated", summary(session));
+    emitList();
+  });
+
+  socket.on("staff:delete", (input) => {
+    const payload = sessionPayloadSchema.safeParse(input);
+    if (!payload.success) return;
+    const session = sessions.get(payload.data.sessionId);
+    if (!session) return;
+    sessions.delete(payload.data.sessionId);
+    io.to(`patient:${payload.data.sessionId}`).emit("session:unavailable", { sessionId: payload.data.sessionId });
+    io.to("staff:lobby").emit("staff:delete", { sessionId: payload.data.sessionId });
+    emitList();
+  });
+
   socket.on("session:selected", (input) => {
     const payload = sessionPayloadSchema.safeParse(input);
     if (!payload.success) return socket.emit("session:unavailable", { sessionId: "" });
