@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Ambulance, ArrowLeft, CalendarClock, ClipboardList, Clock3, FileText, HeartPulse, IdCard, Phone, Printer, Search, UserRound } from "lucide-react";
+import { Activity, Ambulance, ArrowLeft, CalendarClock, ClipboardList, Clock3, FileText, HeartPulse, IdCard, Pencil, Phone, Printer, Search, Trash2, UserRound } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
@@ -232,16 +232,38 @@ export function StaffView() {
               {!sessions.length && <Empty title={text.noSessions} text={text.noSessionsText} />}
               {!!sessions.length && !visible.length && <Empty title={text.noMatches} />}
               {visible.map((session) => (
-                <div key={session.sessionId} role="listitem" className="grid gap-2">
+                <div
+                  key={session.sessionId}
+                  role="listitem"
+                  className={cn(
+                    "relative rounded-xl border p-3 pr-16 text-sm transition hover:border-blue-200 hover:bg-blue-50/40",
+                    session.sessionId === selectedSessionId && "border-blue-600 bg-blue-50 shadow-sm"
+                  )}
+                >
+                  <div className="absolute right-2 top-2 flex gap-1">
+                    <button
+                      type="button"
+                      aria-label={`${text.edit}: ${session.displayName}`}
+                      className="grid size-7 place-items-center rounded-md text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+                      onClick={() => choose(session.sessionId)}
+                    >
+                      <Pencil className="size-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${text.delete}: ${session.displayName}`}
+                      className="grid size-7 place-items-center rounded-md text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600"
+                      onClick={() => deleteSession(session.sessionId)}
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     aria-current={session.sessionId === selectedSessionId}
                     aria-label={`${text.selectPatient}: ${session.displayName}`}
                     onClick={() => choose(session.sessionId)}
-                    className={cn(
-                      "grid w-full gap-2 rounded-xl border p-3 text-left text-sm transition hover:border-blue-200 hover:bg-blue-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
-                      session.sessionId === selectedSessionId && "border-blue-600 bg-blue-50 shadow-sm"
-                    )}
+                    className="grid w-full gap-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
                   >
                     <span className="grid gap-1">
                       <strong className="text-base leading-tight">{session.displayName}</strong>
@@ -258,14 +280,6 @@ export function StaffView() {
                     </span>
                     <span className="text-xs text-slate-500">{formatStaffDateTime(session.lastUpdatedAt, locale)}</span>
                   </button>
-                  <div className="flex gap-2 px-1">
-                    <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => choose(session.sessionId)}>
-                      {text.edit}
-                    </Button>
-                    <Button type="button" variant="outline" className="h-8 px-2 text-xs text-red-700" onClick={() => deleteSession(session.sessionId)}>
-                      {text.delete}
-                    </Button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -357,14 +371,14 @@ function Details({
   return (
     <>
       <div className="no-print grid gap-3 border-b p-5">
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-2xl font-semibold">{summary.displayName}</h2>
             <p className="font-mono text-sm text-slate-600">
               {text.session} {summary.sessionId}
             </p>
           </div>
-          <div className="shrink-0 pt-1">
+          <div className="ml-auto shrink-0 pt-1">
             <StatusPill status={summary.status} locale={locale} />
           </div>
         </div>
