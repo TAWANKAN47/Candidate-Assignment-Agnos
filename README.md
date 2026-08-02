@@ -1,515 +1,442 @@
 # AGNOS Candidate Assignment
-## ระบบลงทะเบียนผู้ป่วยและหน้าจอ Staff แบบ Real-time
 
----
+ระบบ Patient Information Form และ Staff Monitoring Interface แบบ Real-time สำหรับ AGNOS Candidate Assignment
 
-# ภาพรวมโครงการ (Project Overview)
+## 1. ภาพรวมโปรเจกต์
 
-โปรเจกต์นี้เป็นระบบลงทะเบียนผู้ป่วย (Patient Registration) และหน้าจอติดตามข้อมูลสำหรับเจ้าหน้าที่ (Staff View) ที่พัฒนาขึ้นตามโจทย์ Candidate Assignment ของ AGNOS
+โปรเจกต์นี้พัฒนาขึ้นสำหรับ AGNOS Candidate Assignment โดยแบ่งการทำงานออกเป็น 2 ส่วนหลัก:
 
-ระบบถูกออกแบบให้ผู้ป่วยสามารถกรอกข้อมูลผ่านแบบฟอร์ม และข้อมูลทั้งหมดจะถูกอัปเดตแบบ Real-time ไปยังหน้าจอของเจ้าหน้าที่ผ่าน Socket.IO โดยไม่ต้อง Refresh หน้าเว็บ
+- `Patient Form` สำหรับผู้ป่วยกรอก แก้ไข ล้างฟอร์ม และส่งข้อมูล
+- `Staff View` สำหรับเจ้าหน้าที่ติดตามข้อมูลผู้ป่วยหลาย session แบบ Real-time
 
-นอกจากนี้ยังเพิ่มฟีเจอร์เพื่อยกระดับประสบการณ์ใช้งาน (UX) และคุณภาพของข้อมูล เช่น
+เมื่อผู้ป่วยกรอกข้อมูลใน `Patient Form` ระบบจะส่งการเปลี่ยนแปลงผ่าน `Socket.IO` ไปยัง `Express + Socket.IO` server และ `Staff View` จะเห็นข้อมูลอัปเดตโดยไม่ต้อง refresh หน้าเว็บ
 
-- รองรับหลาย Session พร้อมกัน (Multi-patient Sessions)
-- ระบบที่อยู่ประเทศไทยแบบโครงสร้าง (Structured Thai Address)
-- รองรับภาษาไทยและภาษาอังกฤษ
-- แสดงสถานะผู้ป่วยแบบ Real-time
-- พิมพ์หรือบันทึกข้อมูลเป็น PDF
+สถาปัตยกรรมปัจจุบัน:
 
----
+- Frontend: `Next.js 15` App Router, `React 19`, `TypeScript`, `Tailwind CSS v4`
+- Realtime server: `Express.js` + `Socket.IO Server`
+- Client realtime: `socket.io-client`
+- Forms: `React Hook Form` + `Zod`
+- State: `Zustand`
+- Storage: in-memory session store ใน `server/index.ts`
+- Database: ยังไม่มี persistent database
 
-# คุณสมบัติตามโจทย์ (Assignment Requirements)
+ระบบรองรับ responsive layout สำหรับ mobile, tablet และ desktop แต่โปรเจกต์นี้ยังเป็น candidate assignment ไม่ใช่ระบบโรงพยาบาล production แบบสมบูรณ์
 
-## Patient Form
+## 2. ลิงก์โปรเจกต์
 
-รองรับการกรอกข้อมูล
+GitHub Repository:
 
-- ชื่อ
-- ชื่อกลาง
-- นามสกุล
-- วันเกิด
-- เพศ
-- เบอร์โทรศัพท์
-- Email
-- ที่อยู่
-- ภาษาที่ต้องการ
-- สัญชาติ
-- ศาสนา
-- ผู้ติดต่อฉุกเฉิน
-- ความสัมพันธ์
-- เบอร์โทรผู้ติดต่อฉุกเฉิน (Bonus)
+- `https://github.com/TAWANKAN47/Candidate-Assignment-Agnos`
 
-รองรับ
+ลิงก์สำหรับทดสอบระบบ:
 
-- Required Validation
-- Email Validation
-- Phone Validation
-- Date Validation
-- Responsive Design
+- Live Application: `https://candidate-assignment-agnos.vercel.app`
+- Patient Form: `https://candidate-assignment-agnos.vercel.app`
+- Staff View: `https://candidate-assignment-agnos.vercel.app/staff`
+- Realtime Server: `https://candidate-assignment-agnos-production.up.railway.app`
+- Health Check: `https://candidate-assignment-agnos-production.up.railway.app/health`
 
----
+## 3. วิธีติดตั้งและรันในเครื่อง
 
-## Staff View
-
-แสดงข้อมูลผู้ป่วยแบบ Real-time
-
-สามารถดู
-
-- รายชื่อผู้ป่วยทั้งหมด
-- สถานะผู้ป่วย
-- ข้อมูลผู้ป่วย
-- ประวัติการแก้ไข
-- เวลาที่อัปเดตล่าสุด
-
-รองรับ
-
-- Active
-- Inactive
-- Submitted
-
----
-
-# Bonus Features
-
-โปรเจกต์นี้เพิ่มความสามารถจาก Requirement ดังนี้
-
-Multi-patient Sessions
-
-รองรับผู้ป่วยหลายคนพร้อมกันโดยไม่ชนกัน
-
-ใช้ Session ID และ Socket.IO Room แยกข้อมูลของแต่ละผู้ป่วย
-
----
-
-Thai / English Language
-
-รองรับการสลับภาษา
-
-- ไทย
-- English
-
-โดยข้อมูลยังคงเดิมไม่ถูกล้าง
-
----
-
-Structured Thai Address
-
-จาก Address แบบข้อความ
-
-ปรับเป็น
-
-- บ้านเลขที่ / ถนน
-- จังหวัด
-- อำเภอ / เขต
-- ตำบล / แขวง
-- รหัสไปรษณีย์
-
-พร้อม
-
-- Searchable Combobox
-- Auto Postal Code
-- Cascading จังหวัด → อำเภอ → ตำบล
-
-เพื่อให้ข้อมูลมีความถูกต้องมากขึ้น
-
----
-
-Activity Timeline
-
-Staff สามารถเห็น
-
-- การเปลี่ยนแปลงข้อมูล
-- เวลาที่แก้ไข
-- ฟิลด์ที่เปลี่ยน
-
-แบบ Real-time
-
----
-
-Changed Field Highlight
-
-เมื่อข้อมูลมีการเปลี่ยน
-
-Staff จะเห็นการ Highlight เฉพาะฟิลด์นั้น
-
----
-
-Print / Save as PDF
-
-Staff สามารถพิมพ์หรือบันทึกข้อมูลผู้ป่วยได้
-
----
-
-# Technology Stack
-
-## Frontend
-
-- Next.js 15 (App Router)
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- Radix UI
-- shadcn/ui
-- Lucide React
-
-## Form
-
-- React Hook Form
-- Zod
-
-## State Management
-
-- Zustand
-
-## Realtime
-
-- Express
-- Socket.IO
-- socket.io-client
-
-## Utility
-
-- date-fns
-- clsx
-- tailwind-merge
-
-## Testing
-
-- Vitest
-- React Testing Library
-
----
-
-# โครงสร้างโปรเจกต์
-
-```
-app/
-    patient/
-    staff/
-
-components/
-    patient/
-    staff/
-    ui/
-
-hooks/
-
-lib/
-
-server/
-
-types/
-
-data/
-```
-
-โดยแบ่งหน้าที่ออกเป็น
-
-- UI Components
-- Validation
-- Socket
-- Utilities
-- Address Data
-- Server
-
-อย่างชัดเจน
-
----
-
-# การทำงานของระบบ (Architecture)
-
-```
-Patient
-
-↓
-
-React Hook Form
-
-↓
-
-Validation (Zod)
-
-↓
-
-Socket.IO Client
-
-↓
-
-Express + Socket.IO Server
-
-↓
-
-Session Store
-
-↓
-
-Socket Room
-
-↓
-
-Staff View
-```
-
-เมื่อผู้ป่วยกรอกข้อมูล
-
-↓
-
-ข้อมูลถูก Validate
-
-↓
-
-ส่งผ่าน Socket.IO
-
-↓
-
-Server อัปเดต Session
-
-↓
-
-Broadcast ไปยัง Staff
-
-↓
-
-Staff เห็นข้อมูลทันที
-
-โดยไม่ต้อง Refresh
-
----
-
-# Multi-patient Sessions
-
-ระบบรองรับผู้ป่วยหลายคนพร้อมกัน
-
-แต่ละผู้ป่วยจะมี
-
-Session ID
-
-เป็นของตัวเอง
-
-Socket.IO ใช้
-
-Room
-
-เพื่อแยกข้อมูล
-
-ทำให้
-
-Patient A
-
-จะไม่เห็นข้อมูลของ
-
-Patient B
-
-และ Staff สามารถเลือกดูแต่ละ Session ได้
-
----
-
-# Structured Thai Address
-
-ระบบที่อยู่ประเทศไทยถูกออกแบบใหม่จาก Address แบบข้อความ
-
-เป็นข้อมูลแบบโครงสร้าง
-
-ประกอบด้วย
-
-- บ้านเลขที่ / ถนน
-- จังหวัด
-- อำเภอ
-- ตำบล
-- รหัสไปรษณีย์
-
-ข้อดี
-
-- ลดข้อมูลผิดพลาด
-- ค้นหาง่าย
-- นำไปใช้งานต่อได้ง่าย
-- เพิ่มคุณภาพข้อมูล
-
-ข้อมูลจังหวัดประเทศไทยเก็บไว้ภายในโปรเจกต์
-
-ไม่ต้องเรียก API ภายนอก
-
----
-
-# Responsive Design
-
-รองรับ
-
-Desktop
-
-Tablet
-
-Mobile
-
-หน้าจอจะปรับ
-
-- Layout
-- Grid
-- Form
-- Staff Dashboard
-
-ตามขนาดหน้าจอ
-
----
-
-# Accessibility
-
-รองรับ
-
-- Keyboard Navigation
-- ARIA
-- Accessible Combobox
-- Error Association
-- Focus Management
-
----
-
-# Validation
-
-ระบบตรวจสอบ
-
-- Required Fields
-- Email
-- Phone Number
-- Date of Birth
-- Gender
-- Preferred Language
-- Structured Address
-- Postal Code
-
-ทั้งฝั่ง
-
-- Client
-- Server
-
-เพื่อป้องกันข้อมูลผิดพลาด
-
----
-
-# การติดตั้ง
-
-## ติดตั้ง Package
+ติดตั้ง dependencies:
 
 ```bash
 npm install
 ```
 
----
-
-## รัน Socket Server
+รัน Realtime server:
 
 ```bash
 npm run server:dev
 ```
 
----
-
-## รัน Frontend
+รัน Frontend:
 
 ```bash
 npm run dev
 ```
 
----
+เปิดใช้งาน:
 
-เปิดใช้งาน
+- Patient Form: `http://localhost:3000`
+- Patient Form route สำรอง: `http://localhost:3000/patient`
+- Staff View: `http://localhost:3000/staff`
+- Realtime health check: `http://localhost:4000/health`
 
-```
-http://localhost:3000
-```
+Environment variables ที่ใช้:
 
-หรือ
-
-```
-http://localhost:3000/patient
-```
-
-Staff
-
-```
-http://localhost:3000/staff
-```
-
----
-
-# Environment Variables
-
-ตัวอย่าง
-
-```
+```bash
 NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
-
 FRONTEND_ORIGIN=http://localhost:3000
+PORT=4000
 ```
 
----
+ถ้าไม่กำหนด `NEXT_PUBLIC_SOCKET_URL` client จะใช้ `http://localhost:4000` เป็นค่า default และถ้าไม่กำหนด `FRONTEND_ORIGIN` server จะอนุญาต `http://localhost:3000`
 
-# Scripts
+## 4. Requirement หลักจาก Assignment
 
+### Patient Form
+
+หน้า `/` และ `/patient` แสดง `PatientForm` ตัวเดียวกัน ผู้ป่วยไม่ต้องเลือก workflow ระหว่าง Patient และ Staff
+
+ข้อมูลในฟอร์มถูกจัดเป็น 3 section:
+
+1. Patient Information
+2. Contact Information
+3. Emergency Contact
+
+ข้อมูลที่รองรับ:
+
+- First Name, Middle Name, Last Name
+- Date of Birth พร้อม validation ไม่ให้เป็นวันในอนาคต
+- Gender แบบ enum: `male`, `female`, `other`, `prefer-not-to-say`
+- Preferred Language แบบ enum: `th`, `en`, `zh`, `ja`, `other`
+- Phone Number แบบ international phone แยก `phoneCountryCode`, `phoneNationalNumber`, `phone`
+- Email
+- Structured Thai Address พร้อม `address`, `structuredAddress`
+- Nationality
+- Religion
+- Emergency Contact Name
+- Emergency Contact Phone
+- Emergency Contact Relationship
+
+หลัง submit สำเร็จ ฟอร์มจะถูกแทนด้วย success state และผู้ป่วยสามารถกด `Register another patient` เพื่อสร้าง `Session ID` ใหม่โดยไม่ทับ session เดิม
+
+### Staff View
+
+หน้า `/staff` เป็น workflow แยกสำหรับเจ้าหน้าที่ ไม่มีปุ่ม Staff Portal ในหน้า Patient
+
+Staff View แสดง:
+
+- รายการ patient sessions
+- summary cards
+- patient details ตามโครงสร้าง 3 section เดียวกับ Patient Form
+- Activity Timeline
+- real-time status
+- Print / Save as PDF ผ่าน native browser print
+- ปุ่มแก้ไขบาง field และลบ session ผ่าน `staff:update` และ `staff:delete`
+
+สถานะ session ที่ใช้:
+
+- `waiting`
+- `actively-filling`
+- `inactive`
+- `submitted`
+
+## 5. Bonus Features
+
+ฟีเจอร์ที่เพิ่มจาก requirement หลักและมีอยู่ใน codebase:
+
+- Multi-patient sessions ด้วย `Session ID` รูปแบบ `AGN-XXXXXX`
+- Socket.IO room แยกตาม patient session เช่น `patient:<sessionId>`
+- Staff lobby room: `staff:lobby`
+- Activity Timeline แสดง newest first และจำกัดจำนวนรายการ
+- Timeline deduplication ผ่าน `addOrUpdateTimeline()` ใน `server/timeline.ts`
+- Inactivity status update ทุก 5 วินาที โดยใช้ threshold 30 วินาที
+- Patient submit lock ป้องกันการแก้ไขหลังส่งข้อมูล
+- Server protection สำหรับ submitted session ผ่าน `canModifyPatientSession()`
+- Server-side payload whitelist และ validation ด้วย `Zod`
+- Structured Thai Address selector แบบ cascading
+- Local Thai address dataset ใน `data/thai-addresses.json`
+- Bilingual UI สำหรับ Patient และ Staff ผ่าน locale `th` / `en`
+- Locale persistence ด้วย `localStorage` key `agnos-locale`
+- Accessible searchable combobox ใน `components/ui/combobox.tsx`
+- International phone normalization และ display formatter
+- Staff print output ที่ซ่อน timeline, session list, search, buttons และ language switch
+
+## 6. Project Structure
+
+โครงสร้างหลักของโปรเจกต์:
+
+```text
+app/
+  page.tsx
+  patient/
+    page.tsx
+    patient-form.tsx
+    patient-form.test.tsx
+  staff/
+    page.tsx
+    staff-view.tsx
+    staff-i18n.ts
+    store.ts
+
+components/
+  shared/
+    LanguageSwitcher.tsx
+  ui/
+    button.tsx
+    combobox.tsx
+    input.tsx
+    select.tsx
+    textarea.tsx
+  status-pill.tsx
+
+data/
+  thai-addresses.json
+  thai-addresses-source.md
+  thai-addresses-license.txt
+
+hooks/
+  useLocale.ts
+
+i18n/
+  locale.ts
+  translations.ts
+
+lib/
+  events.ts
+  patient-schema.ts
+  patient-values.ts
+  session.ts
+  socket.ts
+  thai-address.ts
+  utils.ts
+
+server/
+  index.ts
+  patient-update.ts
+  session-protection.ts
+  timeline.ts
 ```
-npm run dev
 
-npm run server:dev
+ไฟล์สำคัญ:
 
-npm run build
+- `app/page.tsx`: entry point หลัก แสดง `PatientForm`
+- `app/patient/page.tsx`: route สำรองของ Patient Form
+- `app/staff/page.tsx`: Staff route
+- `app/patient/patient-form.tsx`: UI และ client workflow ของผู้ป่วย
+- `app/staff/staff-view.tsx`: Staff dashboard, timeline, print และ edit/delete controls
+- `lib/patient-schema.ts`: client-side form schema
+- `lib/patient-values.ts`: enum, phone formatter, structured address formatter และ server validation schema
+- `server/index.ts`: Express, Socket.IO events และ in-memory session store
+- `server/patient-update.ts`: whitelist และ apply update logic
+- `server/session-protection.ts`: ป้องกัน submitted session ถูกแก้ไข
+- `server/timeline.ts`: timeline limit และ deduplication
 
-npm run lint
+## 7. Responsive UX/UI
 
+Patient Form ใช้ layout แบบอ่านจากบนลงล่าง เพื่อให้ผู้ป่วยกรอกข้อมูลได้ตรงงานหลัก:
+
+1. อ่านคำอธิบาย
+2. กรอกข้อมูล
+3. Submit
+
+หน้า Patient จึงไม่แสดง technical status ถาวร เช่น session code, connected badge หรือ sync banner ระหว่างระบบทำงานปกติ แต่จะแสดงสถานะเฉพาะเมื่อผู้ป่วยต้องรับรู้ เช่น reconnecting หรือ error
+
+Staff View ใช้ layout ที่ต่างออกไปเพราะเป็น monitoring workflow:
+
+- Desktop: session list, patient details และ activity timeline แยกเป็น 3 column
+- Tablet: layout ยืดหยุ่นตามพื้นที่
+- Mobile: content เรียงเป็น single column เพื่อลด horizontal scrolling
+
+Activity Timeline ใน desktop/tablet ถูกทำให้ scroll ภายใน panel เพื่อไม่ให้ timeline items ทำให้ทั้งหน้าสูงเกิน viewport
+
+## 8. Component Architecture
+
+แนวทาง component ปัจจุบัน:
+
+- `PatientForm` ใช้ `React Hook Form` ร่วมกับ `createPatientSchema(locale)`
+- field labels, validation messages และข้อความ UI ของ Patient อยู่ใน `i18n/translations.ts`
+- Staff translations และ display helpers อยู่ใน `app/staff/staff-i18n.ts`
+- `useLocale()` จัดการ locale กลางและเก็บค่าใน `localStorage`
+- `LanguageSwitcher` ถูก reuse ทั้ง Patient และ Staff
+- dropdown และ searchable combobox ใช้ visual style ร่วมจาก `components/ui/select.tsx`
+- `Combobox` รองรับ searchable และ non-searchable mode พร้อม ARIA attributes
+- structured address option helpers อยู่ใน `lib/thai-address.ts`
+- phone normalization และ formatter อยู่ใน `lib/patient-values.ts`
+- Staff ใช้ `Zustand` store ใน `app/staff/store.ts` เพื่อจัดการ session list, selected session และ snapshot
+
+UI ใช้ `Lucide React` icons เช่น `HeartPulse`, `UserRound`, `Phone`, `Ambulance`, `Pencil`, `Trash2`, `Printer` โดยไม่ใช้อิโมจิเป็นส่วนของ interface หลัก
+
+## 9. Real-time Synchronization
+
+Socket.IO event names ที่มีใน `lib/events.ts`:
+
+Client to server:
+
+- `patient:join`
+- `staff:join`
+- `session:selected`
+- `patient:update`
+- `staff:update`
+- `staff:delete`
+- `patient:submit`
+- `patient:clear`
+
+Server to client:
+
+- `session:created`
+- `session:list`
+- `session:summary-updated`
+- `session:snapshot`
+- `session:unavailable`
+- `patient:update`
+- `patient:status`
+- `patient:submit`
+- `patient:clear`
+- `staff:delete`
+
+Flow หลัก:
+
+```text
+Patient Form
+  -> React Hook Form
+  -> Zod validation
+  -> socket.io-client
+  -> Express + Socket.IO Server
+  -> in-memory Session Map
+  -> Socket.IO room
+  -> Staff View
+```
+
+การแยก session:
+
+- Patient join จะเข้า room `patient:<sessionId>`
+- Staff join จะเข้า room `staff:lobby`
+- Staff เลือก session ผ่าน `session:selected`
+- Server ส่ง snapshot ของ session ที่เลือกกลับไปให้ Staff
+- `session:list` และ `session:summary-updated` ใช้สำหรับ sync รายการ session ใน Staff View
+
+Server ตรวจ payload ก่อน update ด้วย `patientUpdatePayloadSchema`, `serverPatientDataSchema` และ `.strict()` เพื่อ reject field ที่ไม่ได้อยู่ใน whitelist
+
+## 10. วิธีทดสอบ Build และ Deploy
+
+ตรวจ TypeScript:
+
+```bash
 npm run typecheck
+```
 
+ตรวจ ESLint:
+
+```bash
+npm run lint
+```
+
+รันทดสอบ:
+
+```bash
 npm run test
 ```
 
----
+Production build:
 
-# ผลการตรวจสอบ
+```bash
+npm run build
+```
 
-ผ่าน
+Scripts ใน `package.json`:
 
-- TypeScript
-- ESLint
-- Unit Tests
-- Production Build
+```text
+npm run dev
+npm run server:dev
+npm run build
+npm run start
+npm run server:start
+npm run typecheck
+npm run lint
+npm run test
+```
 
----
+Deployment ที่ตั้งใจใช้:
 
-# ข้อจำกัดของระบบ
+- Frontend: Vercel
+- Realtime Server: Railway
 
-โปรเจกต์นี้เป็น Candidate Assignment
+ค่าที่ควรกำหนดตอน deploy:
 
-ข้อมูลผู้ป่วยถูกเก็บไว้ใน Memory
+- Frontend ต้องมี `NEXT_PUBLIC_SOCKET_URL` ชี้ไปที่ Railway realtime server
+- Realtime server ต้องมี `FRONTEND_ORIGIN` ชี้ไปที่ Vercel frontend origin
+- Railway สามารถใช้ `PORT` จาก platform หรือ fallback เป็น `4000`
 
-จึงหายเมื่อ Restart Server
+## 11. Thai Address Dataset
 
-ยังไม่มี
+ข้อมูลที่อยู่ไทยถูกเก็บ local ที่:
 
-- Authentication
-- Database
-- Authorization
-- Audit Log
-- Persistent Storage
+- `data/thai-addresses.json`
 
-ซึ่งสามารถต่อยอดได้ใน Production
+Source metadata อยู่ที่:
 
----
+- `data/thai-addresses-source.md`
+- `data/thai-addresses-license.txt`
 
-# Deployment
+Dataset source:
 
-Frontend
+- `https://github.com/thailand-geography-data/thailand-geography-json`
+- Source commit: `b8b3fb91c7df1129ff5b43cb46f7fcffadd2156b`
+- License: `MIT`
+- Local record count: `7,436` subdistrict-level records
 
-(Vercel URL)
+ระบบ import dataset ตอน build ผ่าน `lib/thai-address.ts` จึงไม่ต้องเรียก remote API ตอน runtime
 
-Backend
+## 12. ข้อจำกัดของระบบ
 
-(Railway URL)
+ข้อจำกัดที่มีอยู่จริงใน codebase ปัจจุบัน:
 
-Repository
+- ข้อมูล session เก็บใน memory ของ Node process เท่านั้น
+- restart server แล้วข้อมูล session จะหาย
+- ยังไม่มี persistent database
+- ยังไม่มี authentication สำหรับ Staff View
+- ยังไม่มี role-based authorization
+- ยังไม่มี audit log ถาวร
+- `staff:update` ใช้ `window.prompt` สำหรับแก้ไข field บางรายการ ไม่ใช่ modal/form editor เต็มรูปแบบ
+- phone validation รองรับเฉพาะประเทศที่กำหนดใน `phoneCountryCodes`
+- structured address dataset รองรับข้อมูลไทยตาม dataset local ที่แนบไว้
+- ระบบนี้ไม่ได้ออกแบบหรือรับรองว่าเป็น HIPAA-compliant, medically certified หรือ fully secure
 
-(GitHub URL)
+## 13. Tech Stack
 
----
+Frontend:
 
-# ผู้พัฒนา
+- `Next.js 15` App Router
+- `React 19`
+- `TypeScript`
+- `Tailwind CSS v4`
 
-Tawan Kanjanakomol
+UI:
+
+- local `shadcn/ui` style primitives ใน `components/ui`
+- `Radix UI` ผ่าน `@radix-ui/react-slot`
+- `Lucide React`
+
+Forms:
+
+- `React Hook Form`
+- `Zod`
+
+Realtime:
+
+- `Socket.IO`
+- `socket.io-client`
+
+Server:
+
+- `Express.js`
+- `Socket.IO Server`
+
+State:
+
+- `Zustand`
+
+Utilities:
+
+- `clsx`
+- `tailwind-merge`
+- `date-fns`
+
+Print:
+
+- Native Browser Print
+- CSS Print Media ใน `app/globals.css`
+
+Testing:
+
+- `Vitest`
+- `React Testing Library`
+
+Code Style:
+
+- `ESLint`
+- `Prettier`
