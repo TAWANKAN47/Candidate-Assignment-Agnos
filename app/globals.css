@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+body {
+  font-family:
+    Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  border-color: #e2e8f0;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  section,
+  div {
+    box-shadow: none !important;
+  }
+}
