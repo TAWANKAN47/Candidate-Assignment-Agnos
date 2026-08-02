@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Locale } from "../i18n/locale";
 import { getAddressRecord } from "./thai-address";
 
 export const genderValues = ["male", "female", "other", "prefer-not-to-say"] as const;
@@ -51,9 +52,12 @@ export function normalizePhone(value: string) {
   return "";
 }
 
-export function formatStructuredAddress(address?: StructuredAddress) {
+export function formatStructuredAddress(address?: StructuredAddress, locale: Locale = "th") {
+  const subdistrict = locale === "en" && address?.subdistrictEn ? address.subdistrictEn : address?.subdistrictTh;
+  const district = locale === "en" && address?.districtEn ? address.districtEn : address?.districtTh;
+  const province = locale === "en" && address?.provinceEn ? address.provinceEn : address?.provinceTh;
   return address
-    ? `${address.addressLine}, ${address.subdistrictTh}, ${address.districtTh}, ${address.provinceTh} ${address.postalCode}`
+    ? `${address.addressLine}, ${subdistrict}, ${district}, ${province} ${address.postalCode}`
     : "";
 }
 

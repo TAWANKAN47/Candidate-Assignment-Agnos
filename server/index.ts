@@ -16,6 +16,7 @@ import {
   type TimelineItem
 } from "../lib/session";
 import { applyPatientUpdate, patientUpdatePayloadSchema } from "./patient-update";
+import { addOrUpdateTimeline, timelineLimit } from "./timeline";
 
 type InterServerEvents = Record<string, never>;
 type SocketData = { sessionId?: string };
@@ -105,7 +106,7 @@ function summary(session: PatientSession): SessionSummary {
 }
 
 function snapshot(session: PatientSession): SessionSnapshot {
-  return { summary: summary(session), data: session.data, timeline: session.timeline.slice(0, 10) };
+  return { summary: summary(session), data: session.data, timeline: session.timeline.slice(0, timelineLimit) };
 }
 
 function list() {
@@ -116,8 +117,8 @@ function list() {
 }
 
 function addTimeline(session: PatientSession, text: string, field?: TimelineItem["field"]) {
-  session.timeline.unshift({ at: new Date().toISOString(), text, field });
-  session.timeline = session.timeline.slice(0, 10);
+  const at = new Date().toISOString();
+  session.timeline = addOrUpdateTimeline(session.timeline, { at, text, field }, Date.parse(at));
 }
 
 function touch(session: PatientSession) {

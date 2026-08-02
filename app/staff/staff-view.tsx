@@ -1,76 +1,99 @@
 "use client";
 
-import {
-  Activity,
-  ArrowLeft,
-  CalendarClock,
-  ClipboardList,
-  Clock3,
-  FileText,
-  HeartPulse,
-  IdCard,
-  Printer,
-  Search,
-  Shield,
-  UserRound
-} from "lucide-react";
+import { Activity, ArrowLeft, CalendarClock, ClipboardList, Clock3, FileText, HeartPulse, IdCard, Printer, Search, Shield, UserRound } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { StatusPill, statusLabel } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useLocale } from "@/hooks/useLocale";
+import type { Locale } from "@/i18n/locale";
+import { translations } from "@/i18n/translations";
 import { createSocket, type AppSocket } from "@/lib/socket";
-import { formatStructuredAddress } from "@/lib/patient-values";
-import { dobLabel, updatedLabel, type PatientData, type TimelineItem } from "@/lib/session";
+import type { PatientData, PatientStatus, TimelineItem } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import {
+  addressValue,
+  codedValue,
+  dedupeTimeline,
+  formatStaffDate,
+  formatStaffDateTime,
+  formatStaffTime,
+  fullAddress,
+  getEmptyValueLabel,
+  requiredStaffFields,
+  staffText,
+  timelineLabel
+} from "./staff-i18n";
 import { useStaffStore } from "./store";
 
-type FieldKey = keyof PatientData;
+type Field = {
+  key: string;
+  label: string;
+  value: (data: PatientData, locale: Locale) => string | undefined;
+  required?: boolean;
+  highlight?: keyof PatientData;
+  wide?: boolean;
+};
 
-const sections: {
-  title: string;
-  icon: typeof UserRound;
-  fields: [FieldKey, string][];
-}[] = [
-  {
-    title: "Personal Information",
-    icon: UserRound,
-    fields: [
-      ["firstName", "First Name"],
-      ["middleName", "Middle Name"],
-      ["lastName", "Last Name"],
-      ["dateOfBirth", "Date of Birth"],
-      ["gender", "Gender"]
-    ]
-  },
-  {
-    title: "Contact Information",
-    icon: IdCard,
-    fields: [
-      ["phone", "Phone Number"],
-      ["email", "Email"],
-      ["address", "Address"]
-    ]
-  },
-  {
-    title: "Additional Information",
-    icon: ClipboardList,
-    fields: [
-      ["preferredLanguage", "Preferred Language"],
-      ["nationality", "Nationality"],
-      ["religion", "Religion"]
-    ]
-  },
-  {
-    title: "Emergency Contact",
-    icon: Shield,
-    fields: [
-      ["emergencyName", "Emergency Contact Name"],
-      ["emergencyPhone", "Emergency Contact Phone"],
-      ["emergencyRelationship", "Emergency Contact Relationship"]
-    ]
-  }
-];
+function staffSections(locale: Locale): { title: string; icon: typeof UserRound; fields: Field[]; columns: string }[] {
+  const fields = translations[locale].fields;
+  const text = staffText[locale];
+  return [
+    {
+      title: text.sections.patient,
+      icon: UserRound,
+      columns: "sm:grid-cols-2 2xl:grid-cols-3",
+      fields: [
+        { key: "firstName", label: fields.firstName, value: (data) => data.firstName, required: true, highlight: "firstName" },
+        { key: "lastName", label: fields.lastName, value: (data) => data.lastName, required: true, highlight: "lastName" },
+        { key: "middleName", label: fields.middleName, value: (data) => data.middleName, highlight: "middleName" },
+        { key: "dateOfBirth", label: fields.dateOfBirth, value: (data, locale) => formatStaffDate(data.dateOfBirth, locale), required: true, highlight: "dateOfBirth" },
+        { key: "gender", label: fields.gender, value: (data, locale) => codedValue("gender", data.gender, locale), required: true, highlight: "gender" },
+        {
+          key: "preferredLanguage",
+          label: fields.preferredLanguage,
+          value: (data, locale) => codedValue("preferredLanguage", data.preferredLanguage, locale),
+          required: true,
+          highlight: "preferredLanguage"
+        },
+        { key: "nationality", label: fields.nationality, value: (data) => data.nationality, required: true, highlight: "nationality" },
+        { key: "religion", label: fields.religion, value: (data, locale) => codedValue("religion", data.religion, locale), highlight: "religion" }
+      ]
+    },
+    {
+      title: text.sections.contact,
+      icon: IdCard,
+      columns: "sm:grid-cols-2",
+      fields: [
+        { key: "phone", label: fields.phone, value: (data) => data.phone, required: true, highlight: "phone" },
+        { key: "email", label: fields.email, value: (data) => data.email, required: true, highlight: "email" },
+        { key: "addressLine", label: text.addressLine, value: (data) => data.structuredAddress?.addressLine, required: true, highlight: "structuredAddress", wide: true },
+        { key: "province", label: text.province, value: (data, locale) => addressValue(data.structuredAddress, "province", locale), required: true, highlight: "structuredAddress" },
+        { key: "district", label: text.district, value: (data, locale) => addressValue(data.structuredAddress, "district", locale), required: true, highlight: "structuredAddress" },
+        { key: "subdistrict", label: text.subdistrict, value: (data, locale) => addressValue(data.structuredAddress, "subdistrict", locale), required: true, highlight: "structuredAddress" },
+        { key: "postalCode", label: text.postalCode, value: (data) => data.structuredAddress?.postalCode, required: true, highlight: "structuredAddress" },
+        { key: "fullAddress", label: text.fullAddress, value: (data, locale) => fullAddress(data.structuredAddress, locale), required: true, highlight: "structuredAddress", wide: true }
+      ]
+    },
+    {
+      title: text.sections.emergency,
+      icon: Shield,
+      columns: "sm:grid-cols-2 2xl:grid-cols-3",
+      fields: [
+        { key: "emergencyName", label: fields.emergencyName, value: (data) => data.emergencyName, highlight: "emergencyName" },
+        { key: "emergencyPhone", label: fields.emergencyPhone, value: (data) => data.emergencyPhone, highlight: "emergencyPhone" },
+        {
+          key: "emergencyRelationship",
+          label: fields.emergencyRelationship,
+          value: (data, locale) => codedValue("emergencyRelationship", data.emergencyRelationship, locale),
+          highlight: "emergencyRelationship"
+        }
+      ]
+    }
+  ];
+}
 
 export function StaffView() {
   const params = useSearchParams();
@@ -78,6 +101,8 @@ export function StaffView() {
   const [query, setQuery] = useState("");
   const [connected, setConnected] = useState(false);
   const [highlightedField, setHighlightedField] = useState<TimelineItem["field"]>();
+  const { locale, setLocale } = useLocale();
+  const text = staffText[locale];
   const { sessions, selectedSessionId, snapshot, setSessions, upsertSummary, selectSession, setSnapshot } = useStaffStore();
 
   useEffect(() => {
@@ -139,91 +164,88 @@ export function StaffView() {
               <HeartPulse className="size-7" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Patient Intake Monitor</h1>
-              <p className="text-sm text-slate-600">Monitor patient information and form activity in real time.</p>
+              <h1 className="text-2xl font-semibold tracking-tight">{text.headerTitle}</h1>
+              <p className="text-sm text-slate-600">{text.headerDescription}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <ConnectionBadge connected={connected} />
+            <LanguageSwitcher locale={locale} label={text.language} onChange={setLocale} />
+            <ConnectionBadge connected={connected} locale={locale} />
             <Button type="button" variant="outline" className="h-11" onClick={() => window.print()} disabled={!snapshot}>
               <Printer className="size-4" />
-              Print / Save as PDF
+              {text.print}
             </Button>
           </div>
         </div>
       </header>
 
       <main className="grid gap-5 px-4 py-5 sm:px-6 lg:px-8">
-        <SummaryCards />
+        <div className="no-print">
+          <SummaryCards locale={locale} />
+        </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(500px,1fr)_minmax(280px,340px)]">
-          <aside className="no-print rounded-2xl border bg-white shadow-sm" aria-label="Active patient sessions">
+          <aside className="no-print rounded-2xl border bg-white shadow-sm" aria-label={text.activeSessions}>
             <div className="grid gap-3 border-b p-4">
               <div>
-                <h2 className="font-semibold">Active Patient Sessions</h2>
-                <p className="text-sm text-slate-500">{sessions.length} current sessions</p>
+                <h2 className="font-semibold">{text.activeSessions}</h2>
+                <p className="text-sm text-slate-500">
+                  {sessions.length} {text.currentSessions}
+                </p>
               </div>
               <label className="relative">
                 <Search className="pointer-events-none absolute left-3 top-3 size-4 text-slate-400" aria-hidden="true" />
-                <Input
-                  className="pl-9"
-                  type="search"
-                  placeholder="Search patient or session"
-                  aria-label="Search patient or session"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
+                <Input className="pl-9" type="search" placeholder={text.search} aria-label={text.search} value={query} onChange={(event) => setQuery(event.target.value)} />
               </label>
             </div>
             <div className="grid gap-2 overflow-auto p-3 lg:max-h-[calc(100dvh-286px)]" role="list" aria-live="polite">
-              {!sessions.length && (
-                <Empty title="No active patient sessions" text="Patient sessions will appear when a patient opens the information form." />
-              )}
-              {!!sessions.length && !visible.length && <Empty title="No matching patient sessions" />}
+              {!sessions.length && <Empty title={text.noSessions} text={text.noSessionsText} />}
+              {!!sessions.length && !visible.length && <Empty title={text.noMatches} />}
               {visible.map((session) => (
-                <button
-                  key={session.sessionId}
-                  type="button"
-                  role="listitem"
-                  aria-current={session.sessionId === selectedSessionId}
-                  onClick={() => choose(session.sessionId)}
-                  className={cn(
-                    "grid gap-2 rounded-xl border p-3 text-left text-sm transition hover:border-blue-200 hover:bg-blue-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
-                    session.sessionId === selectedSessionId && "border-blue-600 bg-blue-50 shadow-sm"
-                  )}
-                >
-                  <span className="grid gap-1">
-                    <strong className="text-base leading-tight">{session.displayName}</strong>
-                    <span className="font-mono text-xs font-medium text-slate-600">{session.sessionId}</span>
-                  </span>
-                  <StatusPill status={session.status} />
-                  <span className="text-slate-700">
-                    {session.completedRequiredFields} / {session.totalRequiredFields} required fields
-                  </span>
-                  <span className="text-slate-600">
-                    {[session.dateOfBirth && `DOB: ${dobLabel(session.dateOfBirth)}`, session.maskedPhone && `Phone: ${session.maskedPhone}`]
-                      .filter(Boolean)
-                      .join(" | ")}
-                  </span>
-                  <span className="text-xs text-slate-500">{updatedLabel(session.lastUpdatedAt)}</span>
-                </button>
+                <div key={session.sessionId} role="listitem">
+                  <button
+                    type="button"
+                    aria-current={session.sessionId === selectedSessionId}
+                    aria-label={`${text.selectPatient}: ${session.displayName}`}
+                    onClick={() => choose(session.sessionId)}
+                    className={cn(
+                      "grid w-full gap-2 rounded-xl border p-3 text-left text-sm transition hover:border-blue-200 hover:bg-blue-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
+                      session.sessionId === selectedSessionId && "border-blue-600 bg-blue-50 shadow-sm"
+                    )}
+                  >
+                    <span className="grid gap-1">
+                      <strong className="text-base leading-tight">{session.displayName}</strong>
+                      <span className="font-mono text-xs font-medium text-slate-600">{session.sessionId}</span>
+                    </span>
+                    <StatusPill status={session.status} locale={locale} />
+                    <span className="text-slate-700">
+                      {session.completedRequiredFields} / {session.totalRequiredFields} {text.requiredFields}
+                    </span>
+                    <span className="text-slate-600">
+                      {[session.dateOfBirth && `${text.dob}: ${formatStaffDate(session.dateOfBirth, locale)}`, session.maskedPhone && `${text.phoneShort}: ${session.maskedPhone}`]
+                        .filter(Boolean)
+                        .join(" | ")}
+                    </span>
+                    <span className="text-xs text-slate-500">{formatStaffDateTime(session.lastUpdatedAt, locale)}</span>
+                  </button>
+                </div>
               ))}
             </div>
           </aside>
 
           <section className="rounded-2xl border bg-white shadow-sm">
-            <Details highlightedField={highlightedField} />
+            <Details highlightedField={highlightedField} locale={locale} />
           </section>
 
-          <aside className="rounded-2xl border bg-white shadow-sm lg:col-span-2 xl:col-span-1">
+          <aside className="no-print flex min-h-0 flex-col rounded-2xl border bg-white shadow-sm lg:col-span-2 lg:h-[calc(100dvh-286px)] xl:col-span-1 xl:h-[calc(100dvh-220px)]">
             <div className="border-b p-5">
-              <h2 className="font-semibold">Activity Timeline</h2>
+              <h2 className="font-semibold">{text.activity}</h2>
             </div>
-            <div className="grid gap-3 p-4 text-sm lg:max-h-[calc(100dvh-286px)] lg:overflow-auto xl:max-h-[calc(100dvh-220px)]">
+            <div className="grid max-h-[420px] min-h-0 gap-3 overflow-y-auto p-4 text-sm lg:max-h-none lg:flex-1" tabIndex={0} aria-label={text.activity}>
               {snapshot?.timeline.length ? (
-                snapshot.timeline.map((item) => <TimelineRow key={`${item.at}-${item.text}`} item={item} />)
+                dedupeTimeline(snapshot.timeline).map((item) => <TimelineRow key={`${item.at}-${item.text}`} item={item} locale={locale} />)
               ) : (
-                <span className="text-slate-500">Select a patient session to view activity.</span>
+                <span className="text-slate-500">{text.selectActivity}</span>
               )}
             </div>
           </aside>
@@ -233,18 +255,15 @@ export function StaffView() {
   );
 }
 
-function SummaryCards() {
+function SummaryCards({ locale }: { locale: Locale }) {
   const { snapshot } = useStaffStore();
+  const text = staffText[locale];
   const summary = snapshot?.summary;
   const cards = [
-    { label: "Form Status", value: summary ? statusLabel(summary.status) : "No patient selected", icon: Activity },
-    {
-      label: "Required Fields",
-      value: summary ? `${summary.completedRequiredFields} / ${summary.totalRequiredFields}` : "--",
-      icon: ClipboardList
-    },
-    { label: "Last Updated", value: summary ? updatedLabel(summary.lastUpdatedAt).replace("Updated ", "") : "--", icon: Clock3 },
-    { label: "Session ID", value: summary?.sessionId || "--", icon: IdCard }
+    { label: text.status, value: summary ? statusLabel(summary.status, locale) : text.notSelected, icon: Activity },
+    { label: text.requiredFields, value: summary ? `${summary.completedRequiredFields} / ${summary.totalRequiredFields}` : text.notEnteredYet, icon: ClipboardList },
+    { label: text.lastUpdated, value: summary ? formatStaffDateTime(summary.lastUpdatedAt, locale) : text.notEnteredYet, icon: Clock3 },
+    { label: text.sessionId, value: summary?.sessionId || text.notEnteredYet, icon: IdCard }
   ];
 
   return (
@@ -262,17 +281,16 @@ function SummaryCards() {
   );
 }
 
-function Details({ highlightedField }: { highlightedField?: TimelineItem["field"] }) {
+function Details({ highlightedField, locale }: { highlightedField?: TimelineItem["field"]; locale: Locale }) {
   const { sessions, selectedSessionId, snapshot, selectSession } = useStaffStore();
+  const text = staffText[locale];
 
-  if (!selectedSessionId) {
-    return <Empty title="Select a patient session" text="Choose a patient from the list to monitor their information." />;
-  }
+  if (!selectedSessionId) return <Empty title={text.selectPatient} text={text.selectPatientText} />;
 
   if (!sessions.some((session) => session.sessionId === selectedSessionId) && !snapshot) {
     return (
       <div className="grid gap-3 p-6">
-        <Empty title="Patient session unavailable" text="This session may have expired or is no longer active." />
+        <Empty title={text.unavailable} text={text.unavailableText} />
         <Button
           className="w-fit"
           variant="outline"
@@ -281,46 +299,45 @@ function Details({ highlightedField }: { highlightedField?: TimelineItem["field"
             window.history.replaceState(null, "", "/staff");
           }}
         >
-          Return to active sessions
+          {text.returnList}
         </Button>
       </div>
     );
   }
 
-  if (!snapshot) return <Empty title="Loading patient session" />;
+  if (!snapshot) return <Empty title={text.loading} />;
 
   const { summary, data } = snapshot;
   return (
     <>
-      <div className="grid gap-3 border-b p-5">
+      <div className="no-print grid gap-3 border-b p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold">{summary.displayName}</h2>
-            <p className="font-mono text-sm text-slate-600">Session {summary.sessionId}</p>
+            <p className="font-mono text-sm text-slate-600">
+              {text.session} {summary.sessionId}
+            </p>
           </div>
-          <StatusPill status={summary.status} />
+          <StatusPill status={summary.status} locale={locale} />
         </div>
-        <p className="text-sm text-slate-500">{updatedLabel(summary.lastUpdatedAt)}</p>
-        {summary.submittedAt && <p className="text-sm text-slate-500">Submission time: {new Date(summary.submittedAt).toLocaleString()}</p>}
-        <p className="hidden print:block text-sm text-slate-600">Generated: {new Date().toLocaleString()}</p>
-        <Button
-          className="no-print mt-1 w-fit md:hidden"
-          type="button"
-          variant="outline"
-          onClick={() => document.querySelector("[aria-label='Active patient sessions']")?.scrollIntoView()}
-        >
+        <p className="text-sm text-slate-500">{formatStaffDateTime(summary.lastUpdatedAt, locale)}</p>
+        {summary.submittedAt && (
+          <p className="text-sm text-slate-500">
+            {text.submittedAt}: {formatStaffDateTime(summary.submittedAt, locale)}
+          </p>
+        )}
+        <p className="hidden text-sm text-slate-600 print:block">
+          {text.generated}: {formatStaffDateTime(new Date().toISOString(), locale)}
+        </p>
+        <Button className="no-print mt-1 w-fit md:hidden" type="button" variant="outline" onClick={() => document.querySelector(`[aria-label="${text.activeSessions}"]`)?.scrollIntoView()}>
           <ArrowLeft className="size-4" />
-          Back to patient list
+          {text.back}
         </Button>
       </div>
 
       <div className="grid gap-4 p-4 sm:p-5">
-        <div className="hidden print:block">
-          <h1 className="text-2xl font-semibold">AGNOS Patient Intake</h1>
-          <h2 className="text-lg font-semibold">Patient Information Summary</h2>
-        </div>
-        {sections.map((section) => (
-          <InfoSection key={section.title} section={section} data={data} highlightedField={highlightedField} />
+        {staffSections(locale).map((section) => (
+          <InfoSection key={section.title} section={section} data={data} status={summary.status} highlightedField={highlightedField} locale={locale} />
         ))}
       </div>
     </>
@@ -330,11 +347,15 @@ function Details({ highlightedField }: { highlightedField?: TimelineItem["field"
 function InfoSection({
   section,
   data,
-  highlightedField
+  status,
+  highlightedField,
+  locale
 }: {
-  section: (typeof sections)[number];
+  section: ReturnType<typeof staffSections>[number];
   data: PatientData;
+  status: PatientStatus;
   highlightedField?: TimelineItem["field"];
+  locale: Locale;
 }) {
   const Icon = section.icon;
   return (
@@ -343,25 +364,21 @@ function InfoSection({
         <Icon className="size-5 text-blue-700" aria-hidden="true" />
         <h3 className="font-semibold">{section.title}</h3>
       </div>
-      <dl className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-        {section.fields.map(([field, label]) => {
-          const raw = data[field];
-          const value =
-            field === "dateOfBirth" && typeof raw === "string"
-              ? dobLabel(raw)
-              : typeof raw === "object"
-                ? formatStructuredAddress(raw)
-                : raw || "Not provided";
-          const active = highlightedField === field;
+      <dl className={cn("grid gap-3", section.columns)}>
+        {section.fields.map((field) => {
+          const raw = field.value(data, locale);
+          const value = raw || getEmptyValueLabel({ status, required: field.required || (field.highlight ? requiredStaffFields.has(field.highlight) : false), locale });
+          const active = highlightedField === field.highlight || (field.highlight === "structuredAddress" && highlightedField === "address");
           return (
             <div
-              key={field}
+              key={field.key}
               className={cn(
                 "rounded-xl border bg-white p-3 transition-colors duration-1000 motion-reduce:transition-none",
+                field.wide && "sm:col-span-2",
                 active && "border-blue-300 bg-blue-50"
               )}
             >
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{field.label}</dt>
               <dd className="mt-1 break-words text-base font-semibold text-slate-950">{value}</dd>
             </div>
           );
@@ -371,7 +388,7 @@ function InfoSection({
   );
 }
 
-function TimelineRow({ item }: { item: TimelineItem }) {
+function TimelineRow({ item, locale }: { item: TimelineItem; locale: Locale }) {
   const Icon = item.field === "submit" ? FileText : item.field === "status" ? CalendarClock : Activity;
   return (
     <div className="flex gap-3 rounded-xl border bg-white p-3">
@@ -379,15 +396,16 @@ function TimelineRow({ item }: { item: TimelineItem }) {
         <Icon className="size-4" aria-hidden="true" />
       </span>
       <p>
-        <span className="font-medium">{item.text}</span>
+        <span className="font-medium">{timelineLabel(item, locale)}</span>
         <br />
-        <span className="text-xs text-slate-500">{new Date(item.at).toLocaleTimeString()}</span>
+        <span className="text-xs text-slate-500">{formatStaffTime(item.at, locale)}</span>
       </p>
     </div>
   );
 }
 
-function ConnectionBadge({ connected }: { connected: boolean }) {
+function ConnectionBadge({ connected, locale }: { connected: boolean; locale: Locale }) {
+  const text = staffText[locale];
   return (
     <span
       className={cn(
@@ -396,7 +414,7 @@ function ConnectionBadge({ connected }: { connected: boolean }) {
       )}
     >
       <span className={cn("size-2 rounded-full", connected ? "bg-emerald-600" : "bg-red-600")} />
-      {connected ? "Connected" : "Disconnected"}
+      {connected ? text.connected : text.disconnected}
     </span>
   );
 }

@@ -15,13 +15,26 @@ export const useStaffStore = create<StaffState>((set) => ({
   sessions: [],
   selectedSessionId: "",
   snapshot: null,
-  setSessions: (sessions) => set({ sessions }),
+  setSessions: (sessions) =>
+    set((state) => {
+      const selected = state.snapshot && sessions.find((item) => item.sessionId === state.snapshot?.summary.sessionId);
+      return { sessions, snapshot: selected && state.snapshot ? { ...state.snapshot, summary: selected } : state.snapshot };
+    }),
   upsertSummary: (summary) =>
     set((state) => ({
       sessions: state.sessions.some((item) => item.sessionId === summary.sessionId)
         ? state.sessions.map((item) => (item.sessionId === summary.sessionId ? summary : item))
-        : [summary, ...state.sessions]
+        : [summary, ...state.sessions],
+      snapshot: state.snapshot?.summary.sessionId === summary.sessionId ? { ...state.snapshot, summary } : state.snapshot
     })),
   selectSession: (selectedSessionId) => set({ selectedSessionId, snapshot: null }),
-  setSnapshot: (snapshot) => set({ snapshot })
+  setSnapshot: (snapshot) =>
+    set((state) => ({
+      snapshot,
+      sessions: snapshot
+        ? state.sessions.some((item) => item.sessionId === snapshot.summary.sessionId)
+          ? state.sessions.map((item) => (item.sessionId === snapshot.summary.sessionId ? snapshot.summary : item))
+          : [snapshot.summary, ...state.sessions]
+        : state.sessions
+    }))
 }));
