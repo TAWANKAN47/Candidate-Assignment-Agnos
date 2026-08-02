@@ -241,7 +241,7 @@ export function StaffView() {
             <div className="shrink-0 border-b p-5">
               <h2 className="font-semibold">{text.activity}</h2>
             </div>
-            <div className="grid max-h-[420px] min-h-0 gap-3 overflow-y-auto p-4 text-sm lg:max-h-none lg:flex-1" tabIndex={0} aria-label={text.activity}>
+            <div className="grid max-h-[420px] min-h-0 content-start gap-2 overflow-y-auto p-3 text-sm lg:max-h-none lg:flex-1" tabIndex={0} aria-label={text.activity}>
               {snapshot?.timeline.length ? (
                 dedupeTimeline(snapshot.timeline).map((item) => <TimelineRow key={`${item.at}-${item.text}`} item={item} locale={locale} />)
               ) : (
@@ -391,14 +391,14 @@ function InfoSection({
 function TimelineRow({ item, locale }: { item: TimelineItem; locale: Locale }) {
   const Icon = item.field === "submit" ? FileText : item.field === "status" ? CalendarClock : Activity;
   return (
-    <div className="flex gap-3 rounded-xl border bg-white p-3">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700">
+    <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700">
         <Icon className="size-4" aria-hidden="true" />
       </span>
-      <p>
-        <span className="font-medium">{timelineLabel(item, locale)}</span>
+      <p className="min-w-0 leading-tight">
+        <span className="font-semibold">{timelineLabel(item, locale)}</span>
         <br />
-        <span className="text-xs text-slate-500">{formatStaffTime(item.at, locale)}</span>
+        <span className="text-xs leading-none text-slate-500">{formatStaffTime(item.at, locale)}</span>
       </p>
     </div>
   );
