@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeStructuredAddress } from "@/lib/patient-values";
-import { addressValue, codedValue, dedupeTimeline, fullAddress, getEmptyValueLabel, timelineLabel } from "./staff-i18n";
+import { addressValue, codedValue, dedupeTimeline, fullAddress, getEmptyValueLabel, staffPhone, timelineLabel } from "./staff-i18n";
 
 describe("staff display helpers", () => {
   it("uses context-aware empty labels", () => {
@@ -13,6 +13,10 @@ describe("staff display helpers", () => {
     expect(codedValue("gender", "male", "en")).toBe("Male");
     expect(codedValue("preferredLanguage", "th", "en")).toBe("Thai");
     expect(codedValue("nationality", "Canadian", "th")).toBe("Canadian");
+  });
+
+  it("formats phone numbers for staff rendering", () => {
+    expect(staffPhone("+66812345678")).toBe("+66 81 234 5678");
   });
 
   it("localizes structured address display through the shared formatter", () => {

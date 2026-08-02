@@ -23,6 +23,7 @@ import {
   fullAddress,
   getEmptyValueLabel,
   requiredStaffFields,
+  staffPhone,
   staffText,
   timelineLabel
 } from "./staff-i18n";
@@ -67,7 +68,7 @@ function staffSections(locale: Locale): { title: string; icon: typeof UserRound;
       icon: Phone,
       columns: "sm:grid-cols-2",
       fields: [
-        { key: "phone", label: fields.phone, value: (data) => data.phone, required: true, highlight: "phone" },
+        { key: "phone", label: fields.phone, value: (data) => staffPhone(data.phone), required: true, highlight: "phone" },
         { key: "email", label: fields.email, value: (data) => data.email, required: true, highlight: "email" },
         { key: "addressLine", label: text.addressLine, value: (data) => data.structuredAddress?.addressLine, required: true, highlight: "structuredAddress", wide: true },
         { key: "province", label: text.province, value: (data, locale) => addressValue(data.structuredAddress, "province", locale), required: true, highlight: "structuredAddress" },
@@ -83,7 +84,7 @@ function staffSections(locale: Locale): { title: string; icon: typeof UserRound;
       columns: "sm:grid-cols-2 2xl:grid-cols-3",
       fields: [
         { key: "emergencyName", label: fields.emergencyName, value: (data) => data.emergencyName, highlight: "emergencyName" },
-        { key: "emergencyPhone", label: fields.emergencyPhone, value: (data) => data.emergencyPhone, highlight: "emergencyPhone" },
+        { key: "emergencyPhone", label: fields.emergencyPhone, value: (data) => staffPhone(data.emergencyPhone), highlight: "emergencyPhone" },
         {
           key: "emergencyRelationship",
           label: fields.emergencyRelationship,

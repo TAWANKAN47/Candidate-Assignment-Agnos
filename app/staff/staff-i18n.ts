@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/locale";
 import { translations } from "@/i18n/translations";
-import { formatStructuredAddress, type StructuredAddress } from "@/lib/patient-values";
+import { formatPhoneDisplay, formatStructuredAddress, type StructuredAddress } from "@/lib/patient-values";
 import type { PatientData, PatientStatus, TimelineItem } from "@/lib/session";
 
 export const staffText = {
@@ -174,6 +174,10 @@ export function addressValue(address: StructuredAddress | undefined, part: "prov
 
 export function fullAddress(address: StructuredAddress | undefined, locale: Locale) {
   return formatStructuredAddress(address, locale);
+}
+
+export function staffPhone(value: string | undefined) {
+  return formatPhoneDisplay(value);
 }
 
 export function formatStaffDate(date: string | undefined, locale: Locale) {

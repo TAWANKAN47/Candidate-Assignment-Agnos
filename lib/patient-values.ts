@@ -4,9 +4,11 @@ import { getAddressRecord } from "./thai-address";
 
 export const genderValues = ["male", "female", "other", "prefer-not-to-say"] as const;
 export const preferredLanguageValues = ["th", "en", "zh", "ja", "other"] as const;
+export const phoneCountryCodes = ["+66", "+1", "+86", "+81", "+82", "+65", "+60"] as const;
 
 export type GenderValue = (typeof genderValues)[number];
 export type PreferredLanguageValue = (typeof preferredLanguageValues)[number];
+export type PhoneCountryCode = (typeof phoneCountryCodes)[number];
 
 export function normalizeGender(value?: string) {
   const legacy: Record<string, GenderValue> = {
@@ -43,13 +45,63 @@ export type StructuredAddress = {
   postalCode: string;
 };
 
+export const phoneCountryOptions = [
+  { value: "+66", label: "Thailand (+66)" },
+  { value: "+1", label: "USA / Canada (+1)" },
+  { value: "+86", label: "China (+86)" },
+  { value: "+81", label: "Japan (+81)" },
+  { value: "+82", label: "Korea (+82)" },
+  { value: "+65", label: "Singapore (+65)" },
+  { value: "+60", label: "Malaysia (+60)" }
+] as const;
+
+const nationalPhonePatterns: Record<PhoneCountryCode, RegExp> = {
+  "+66": /^\d{9}$/,
+  "+1": /^\d{10}$/,
+  "+86": /^\d{11}$/,
+  "+81": /^\d{10}$/,
+  "+82": /^\d{9,10}$/,
+  "+65": /^\d{8}$/,
+  "+60": /^\d{9,10}$/
+};
+
+export function normalizeInternationalPhone(countryCode: string, nationalNumber: string) {
+  if (!(phoneCountryCodes as readonly string[]).includes(countryCode)) return "";
+  const code = countryCode as PhoneCountryCode;
+  const raw = nationalNumber.trim();
+  if (!raw || raw.includes("+") || !/^[\d\s-]+$/.test(raw)) return "";
+  let national = raw.replace(/[\s-]/g, "");
+  if (national.startsWith(code.slice(1))) return "";
+  if (code === "+66" && national.startsWith("0")) national = national.slice(1);
+  return nationalPhonePatterns[code].test(national) ? `${code}${national}` : "";
+}
+
 export function normalizePhone(value: string) {
   const trimmed = value.trim();
-  if (!/^\+?[\d\s-]+$/.test(trimmed)) return "";
-  const normalized = trimmed.replace(/[\s-]/g, "");
-  if (/^0\d{9}$/.test(normalized)) return normalized;
-  if (/^\+66\d{9}$/.test(normalized)) return normalized;
-  return "";
+  if (!trimmed) return "";
+  if (trimmed.startsWith("+")) {
+    const normalized = trimmed.replace(/[\s-]/g, "");
+    const countryCode = phoneCountryCodes.find((code) => normalized.startsWith(code));
+    return countryCode ? normalizeInternationalPhone(countryCode, normalized.slice(countryCode.length)) : "";
+  }
+  return normalizeInternationalPhone("+66", trimmed);
+}
+
+export function splitPhone(value?: string) {
+  const phone = normalizePhone(value || "");
+  const countryCode: PhoneCountryCode = phoneCountryCodes.find((code) => phone.startsWith(code)) || "+66";
+  return { countryCode, nationalNumber: phone ? phone.slice(countryCode.length) : "" };
+}
+
+export function formatPhoneDisplay(value?: string) {
+  const phone = normalizePhone(value || "");
+  if (!phone) return "";
+  const countryCode = phoneCountryCodes.find((code) => phone.startsWith(code));
+  if (!countryCode) return phone;
+  const national = phone.slice(countryCode.length);
+  if (countryCode === "+66" && national.length === 9) return `${countryCode} ${national.slice(0, 2)} ${national.slice(2, 5)} ${national.slice(5)}`;
+  if (countryCode === "+1" && national.length === 10) return `${countryCode} ${national.slice(0, 3)} ${national.slice(3, 6)} ${national.slice(6)}`;
+  return `${countryCode} ${national.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
 }
 
 export function formatStructuredAddress(address?: StructuredAddress, locale: Locale = "th") {
@@ -141,6 +193,8 @@ const serverPatientDataFields = {
   lastName: z.string().trim(),
   dateOfBirth: dateOfBirthSchema,
   gender: z.enum(genderValues),
+  phoneCountryCode: z.enum(phoneCountryCodes),
+  phoneNationalNumber: z.string().trim(),
   phone: phoneSchema,
   email: z.string().trim().email(),
   address: z.string().trim().min(1),
@@ -149,12 +203,20 @@ const serverPatientDataFields = {
   nationality: z.string().trim().min(1),
   religion: optionalText,
   emergencyName: optionalText,
+  emergencyPhoneCountryCode: z.enum(phoneCountryCodes).optional(),
+  emergencyPhoneNationalNumber: optionalText,
   emergencyPhone: optionalPhoneSchema,
   emergencyRelationship: optionalText
 };
 
 export const serverPatientDataSchema = z.object(serverPatientDataFields).strict()
   .superRefine((data, ctx) => {
+    if (data.phone !== normalizeInternationalPhone(data.phoneCountryCode, data.phoneNationalNumber)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Phone does not match country code" });
+    }
+    if (data.emergencyPhone && data.emergencyPhone !== normalizeInternationalPhone(data.emergencyPhoneCountryCode || "+66", data.emergencyPhoneNationalNumber || "")) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["emergencyPhone"], message: "Emergency phone does not match country code" });
+    }
     if (data.address !== formatStructuredAddress(data.structuredAddress)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Address does not match structured address" });
     }
@@ -203,6 +265,8 @@ export const patientUpdateSchema = z
     lastName: editableTextSchema.optional(),
     dateOfBirth: editableDateOfBirthSchema.optional(),
     gender: z.enum(genderValues).or(z.literal("")).optional(),
+    phoneCountryCode: z.enum(phoneCountryCodes).optional(),
+    phoneNationalNumber: editableTextSchema.optional(),
     phone: editablePhoneSchema.optional(),
     email: editableEmailSchema.optional(),
     address: editableTextSchema.optional(),
@@ -211,11 +275,24 @@ export const patientUpdateSchema = z
     nationality: editableTextSchema.optional(),
     religion: editableTextSchema.optional(),
     emergencyName: editableTextSchema.optional(),
+    emergencyPhoneCountryCode: z.enum(phoneCountryCodes).optional(),
+    emergencyPhoneNationalNumber: editableTextSchema.optional(),
     emergencyPhone: editablePhoneSchema.optional(),
     emergencyRelationship: editableTextSchema.optional()
   })
   .strict()
   .superRefine((data, ctx) => {
+    if (data.phone && data.phoneCountryCode && data.phoneNationalNumber && data.phone !== normalizeInternationalPhone(data.phoneCountryCode, data.phoneNationalNumber)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Phone does not match country code" });
+    }
+    if (
+      data.emergencyPhone &&
+      data.emergencyPhoneCountryCode &&
+      data.emergencyPhoneNationalNumber &&
+      data.emergencyPhone !== normalizeInternationalPhone(data.emergencyPhoneCountryCode, data.emergencyPhoneNationalNumber)
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["emergencyPhone"], message: "Emergency phone does not match country code" });
+    }
     if (data.address && data.structuredAddress && data.address !== formatStructuredAddress(data.structuredAddress)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "Address does not match structured address" });
     }

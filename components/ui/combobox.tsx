@@ -53,9 +53,9 @@ export function Combobox({
   }, [open]);
 
   function choose(next: ComboboxOption) {
-    onChange(next.value);
-    setQuery("");
     setOpen(false);
+    setQuery("");
+    onChange(next.value);
   }
 
   return (
@@ -156,7 +156,10 @@ export function Combobox({
                   option.value === value && "font-semibold text-blue-700",
                   index === activeIndex && "bg-blue-50"
                 )}
-                onMouseDown={(event) => event.preventDefault()}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  choose(option);
+                }}
                 onClick={() => choose(option)}
               >
                 {option.label}

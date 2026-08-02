@@ -15,6 +15,11 @@ export type PatientTranslations = {
   clearButton: string;
   confirmSubmit: string;
   submitSuccess: string;
+  submitSuccessTitle: string;
+  submitSuccessDescription: string;
+  submissionTime: string;
+  currentSessionId: string;
+  newPatientButton: string;
   reconnecting: string;
   unableToSync: string;
   sections: {
@@ -77,6 +82,11 @@ export const translations = {
     clearButton: "ล้างแบบฟอร์ม",
     confirmSubmit: "ยืนยันส่งข้อมูลผู้ป่วยหรือไม่?",
     submitSuccess: "ส่งข้อมูลเรียบร้อยแล้ว",
+    submitSuccessTitle: "ส่งข้อมูลเรียบร้อยแล้ว",
+    submitSuccessDescription: "ข้อมูลของคุณถูกส่งให้เจ้าหน้าที่แล้ว",
+    submissionTime: "เวลาส่งข้อมูล",
+    currentSessionId: "รหัสรายการปัจจุบัน",
+    newPatientButton: "กรอกข้อมูลผู้ป่วยรายใหม่",
     reconnecting: "กำลังเชื่อมต่อใหม่...",
     unableToSync: "ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่อ",
     sections: {
@@ -168,6 +178,11 @@ export const translations = {
     clearButton: "Clear Form",
     confirmSubmit: "Submit patient information?",
     submitSuccess: "Patient information submitted",
+    submitSuccessTitle: "Information submitted successfully",
+    submitSuccessDescription: "Your information has been sent to the staff.",
+    submissionTime: "Submission time",
+    currentSessionId: "Current Session ID",
+    newPatientButton: "Register another patient",
     reconnecting: "Reconnecting...",
     unableToSync: "Unable to sync. Please check your connection.",
     sections: {

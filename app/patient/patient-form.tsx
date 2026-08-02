@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Ambulance, ClipboardList, HeartPulse, Phone, UserRound } from "lucide-react";
+import { AlertCircle, Ambulance, CheckCircle2, ClipboardList, HeartPulse, Phone, UserRound } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form";
@@ -13,12 +13,16 @@ import { useLocale } from "@/hooks/useLocale";
 import { translations, type PatientTranslations } from "@/i18n/translations";
 import { createPatientSchema, type PatientFormValues } from "@/lib/patient-schema";
 import { createSocket, type AppSocket } from "@/lib/socket";
-import { makeSessionId } from "@/lib/session";
+import { makeSessionId, type SessionSnapshot } from "@/lib/session";
 import {
   formatStructuredAddress,
   makeStructuredAddress,
+  normalizeInternationalPhone,
   normalizeGender,
   normalizePreferredLanguage,
+  phoneCountryOptions,
+  splitPhone,
+  type PhoneCountryCode,
   type StructuredAddress
 } from "@/lib/patient-values";
 import { getAddressRecord, getDistrictOptions, getProvinceOptions, getSubdistrictOptions } from "@/lib/thai-address";
@@ -60,6 +64,8 @@ const formDefaults: PatientFormValues = {
   lastName: "",
   dateOfBirth: "",
   gender: "",
+  phoneCountryCode: "+66",
+  phoneNationalNumber: "",
   phone: "",
   email: "",
   address: "",
@@ -68,6 +74,8 @@ const formDefaults: PatientFormValues = {
   nationality: "",
   religion: "",
   emergencyName: "",
+  emergencyPhoneCountryCode: "+66",
+  emergencyPhoneNationalNumber: "",
   emergencyPhone: "",
   emergencyRelationship: ""
 };
@@ -79,6 +87,7 @@ export function PatientForm() {
   const [sessionId, setSessionId] = useState("");
   const [syncState, setSyncState] = useState<SyncState>("reconnecting");
   const [submitted, setSubmitted] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState("");
   const [address, setAddress] = useState<AddressParts>(emptyAddress);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const socket = useRef<AppSocket | null>(null);
@@ -102,19 +111,23 @@ export function PatientForm() {
     if (!sessionId) return;
     const next = createSocket();
     socket.current = next;
-    next.on("connect", () => {
-      setSyncState("synced");
-      next.emit("patient:join", { sessionId });
-    });
-    next.on("disconnect", () => setSyncState("reconnecting"));
-    next.on("connect_error", () => setSyncState("error"));
-    next.on("session:snapshot", (snapshot) => {
+    const applySnapshot = (snapshot: SessionSnapshot) => {
+      setSubmitted(snapshot.summary.status === "submitted");
+      setSubmittedAt(snapshot.summary.submittedAt || "");
       const structuredAddress = snapshot.data.structuredAddress || emptyStructuredAddress;
+      const phone = splitPhone(snapshot.data.phone);
+      const emergencyPhone = splitPhone(snapshot.data.emergencyPhone);
       form.reset({
         ...formDefaults,
         ...snapshot.data,
         gender: normalizeGender(snapshot.data.gender),
         preferredLanguage: normalizePreferredLanguage(snapshot.data.preferredLanguage),
+        phoneCountryCode: (snapshot.data.phoneCountryCode || phone.countryCode) as PhoneCountryCode,
+        phoneNationalNumber: snapshot.data.phoneNationalNumber || phone.nationalNumber,
+        phone: snapshot.data.phone || "",
+        emergencyPhoneCountryCode: (snapshot.data.emergencyPhoneCountryCode || emergencyPhone.countryCode) as PhoneCountryCode,
+        emergencyPhoneNationalNumber: snapshot.data.emergencyPhoneNationalNumber || emergencyPhone.nationalNumber,
+        emergencyPhone: snapshot.data.emergencyPhone || "",
         structuredAddress
       });
       setAddress(
@@ -128,7 +141,16 @@ export function PatientForm() {
             }
           : emptyAddress
       );
+    };
+    next.on("connect", () => {
+      setSyncState("synced");
+      next.emit("patient:join", { sessionId });
     });
+    next.on("disconnect", () => setSyncState("reconnecting"));
+    next.on("connect_error", () => setSyncState("error"));
+    next.on("session:snapshot", applySnapshot);
+    next.on("patient:submit", applySnapshot);
+    next.on("patient:clear", applySnapshot);
     return () => {
       next.disconnect();
     };
@@ -136,6 +158,7 @@ export function PatientForm() {
 
   const emitUpdate = useMemo(
     () => (data: PatientFormValues) => {
+      if (submitted) return;
       if (!socket.current?.connected) {
         setSyncState("reconnecting");
         return;
@@ -144,7 +167,7 @@ export function PatientForm() {
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSyncState("synced"), 600);
     },
-    [sessionId]
+    [sessionId, submitted]
   );
 
   useEffect(() => {
@@ -155,7 +178,17 @@ export function PatientForm() {
   function submit() {
     if (!window.confirm(t.confirmSubmit)) return;
     socket.current?.emit("patient:submit", { sessionId });
-    setSubmitted(true);
+  }
+
+  function registerAnotherPatient() {
+    const nextSession = makeSessionId();
+    localStorage.setItem("agn-session", nextSession);
+    window.history.replaceState(null, "", `${window.location.pathname}?session=${nextSession}`);
+    setSubmitted(false);
+    setSubmittedAt("");
+    setAddress(emptyAddress);
+    form.reset(formDefaults);
+    setSessionId(nextSession);
   }
 
   function focusFirstInvalidField() {
@@ -195,6 +228,14 @@ export function PatientForm() {
     commitAddress({ ...address, subdistrictCode, postalCode: selectedAddress?.postalCode || "" });
   }
 
+  function updatePhone(prefix: "phone" | "emergencyPhone", countryCode: string, nationalNumber: string) {
+    const code = countryCode as PhoneCountryCode;
+    const phone = normalizeInternationalPhone(countryCode, nationalNumber);
+    form.setValue(`${prefix}CountryCode`, code, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+    form.setValue(`${prefix}NationalNumber`, nationalNumber, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+    form.setValue(prefix, phone, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+  }
+
   return (
     <div className="min-h-dvh bg-slate-50">
       <header className="border-b bg-white">
@@ -213,15 +254,14 @@ export function PatientForm() {
       </header>
 
       <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        {submitted ? (
+          <SuccessState sessionId={sessionId} submittedAt={submittedAt} onNewPatient={registerAnotherPatient} t={t} locale={locale} />
+        ) : (
+          <>
         <section className="grid gap-2">
           <h2 className="text-3xl font-semibold tracking-tight text-slate-950">{t.pageTitle}</h2>
           <p className="max-w-2xl text-base text-slate-600">{t.pageDescription}</p>
           <AttentionStatus state={syncState} t={t} />
-          {submitted && (
-            <p className="mt-3 w-fit rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-              {t.submitSuccess}
-            </p>
-          )}
         </section>
 
         <form className="grid gap-5" onSubmit={form.handleSubmit(submit, focusFirstInvalidField)}>
@@ -276,7 +316,15 @@ export function PatientForm() {
           </Section>
 
           <Section icon={Phone} title={t.sections.contact.title} description={t.sections.contact.description}>
-            <Field name="phone" label={t.fields.phone} required register={form.register} errors={form.formState.errors} t={t} />
+            <PhoneField
+              label={t.fields.phone}
+              required
+              countryCode={form.watch("phoneCountryCode")}
+              nationalNumber={form.watch("phoneNationalNumber")}
+              onChange={(countryCode, nationalNumber) => updatePhone("phone", countryCode, nationalNumber)}
+              error={form.formState.errors.phoneNationalNumber?.message || form.formState.errors.phone?.message}
+              t={t}
+            />
             <Field name="email" label={t.fields.email} type="email" required register={form.register} errors={form.formState.errors} t={t} />
             <AddressField
               label={t.addressFields.houseStreet}
@@ -349,12 +397,13 @@ export function PatientForm() {
               className="sm:col-span-2"
               t={t}
             />
-            <Field
-              name="emergencyPhone"
+            <PhoneField
               label={t.fields.emergencyPhone}
               optional
-              register={form.register}
-              errors={form.formState.errors}
+              countryCode={form.watch("emergencyPhoneCountryCode") || "+66"}
+              nationalNumber={form.watch("emergencyPhoneNationalNumber") || ""}
+              onChange={(countryCode, nationalNumber) => updatePhone("emergencyPhone", countryCode, nationalNumber)}
+              error={form.formState.errors.emergencyPhoneNationalNumber?.message || form.formState.errors.emergencyPhone?.message}
               className="sm:col-span-2"
               t={t}
             />
@@ -379,8 +428,52 @@ export function PatientForm() {
             </Button>
           </div>
         </form>
+          </>
+        )}
       </main>
     </div>
+  );
+}
+
+function SuccessState({
+  sessionId,
+  submittedAt,
+  onNewPatient,
+  t,
+  locale
+}: {
+  sessionId: string;
+  submittedAt: string;
+  onNewPatient: () => void;
+  t: PatientTranslations;
+  locale: "th" | "en";
+}) {
+  const formattedTime = submittedAt
+    ? new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(submittedAt))
+    : "";
+  return (
+    <section className="rounded-2xl border bg-white p-6 text-center shadow-sm sm:p-10">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+        <CheckCircle2 className="size-8" aria-hidden="true" />
+      </div>
+      <h2 className="mt-4 text-2xl font-semibold text-slate-950">{t.submitSuccessTitle}</h2>
+      <p className="mx-auto mt-2 max-w-md text-slate-600">{t.submitSuccessDescription}</p>
+      <dl className="mx-auto mt-6 grid max-w-md gap-3 rounded-2xl border bg-slate-50 p-4 text-left">
+        {formattedTime && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{t.submissionTime}</dt>
+            <dd className="mt-1 font-semibold text-slate-950">{formattedTime}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{t.currentSessionId}</dt>
+          <dd className="mt-1 font-mono font-semibold text-slate-950">{sessionId}</dd>
+        </div>
+      </dl>
+      <Button type="button" className="mt-6 h-11" onClick={onNewPatient}>
+        {t.newPatientButton}
+      </Button>
+    </section>
   );
 }
 
@@ -536,6 +629,64 @@ function AddressField({
           className={readOnly ? "bg-slate-50 text-slate-700" : undefined}
         />
       )}
+      <span id={errorId} className={cn("min-h-5 text-sm", showError ? "text-red-600" : "invisible")}>
+        {showError ? String(error) : "."}
+      </span>
+    </label>
+  );
+}
+
+function PhoneField({
+  label,
+  countryCode,
+  nationalNumber,
+  onChange,
+  error,
+  required,
+  optional,
+  t,
+  className
+}: {
+  label: string;
+  countryCode: string;
+  nationalNumber: string;
+  onChange: (countryCode: string, nationalNumber: string) => void;
+  error?: string;
+  required?: boolean;
+  optional?: boolean;
+  t: PatientTranslations;
+  className?: string;
+}) {
+  const fieldId = useId();
+  const labelId = `${fieldId}-label`;
+  const errorId = `${fieldId}-error`;
+  const showError = !!error;
+  return (
+    <label className={cn("grid gap-1.5", className)}>
+      <span id={labelId} className="text-sm font-semibold text-slate-800">
+        {label} {required && <span className="text-red-600">{t.requiredSuffix}</span>}
+        {optional && <span className="font-normal text-slate-500"> ({t.optionalLabel})</span>}
+      </span>
+      <div className="grid grid-cols-[minmax(128px,0.42fr)_minmax(0,1fr)] gap-2">
+        <Combobox
+          id={`${fieldId}-country`}
+          labelId={labelId}
+          invalid={showError}
+          options={phoneCountryOptions}
+          placeholder="+66"
+          searchable={false}
+          value={countryCode || "+66"}
+          onChange={(value) => onChange(value, nationalNumber)}
+        />
+        <Input
+          id={fieldId}
+          inputMode="tel"
+          aria-describedby={showError ? errorId : undefined}
+          aria-invalid={showError}
+          value={nationalNumber}
+          onChange={(event) => onChange(countryCode || "+66", event.target.value)}
+        />
+      </div>
       <span id={errorId} className={cn("min-h-5 text-sm", showError ? "text-red-600" : "invisible")}>
         {showError ? String(error) : "."}
       </span>

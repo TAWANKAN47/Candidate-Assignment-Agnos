@@ -21,6 +21,8 @@ export type PatientData = {
   lastName?: string;
   dateOfBirth?: string;
   gender?: string;
+  phoneCountryCode?: string;
+  phoneNationalNumber?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -29,6 +31,8 @@ export type PatientData = {
   nationality?: string;
   religion?: string;
   emergencyName?: string;
+  emergencyPhoneCountryCode?: string;
+  emergencyPhoneNationalNumber?: string;
   emergencyPhone?: string;
   emergencyRelationship?: string;
 };

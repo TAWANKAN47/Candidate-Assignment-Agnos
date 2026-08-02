@@ -19,6 +19,8 @@ export function applyPatientUpdate(target: PatientData, data: PatientData) {
   if (Object.hasOwn(data, "lastName")) target.lastName = data.lastName;
   if (Object.hasOwn(data, "dateOfBirth")) target.dateOfBirth = data.dateOfBirth;
   if (Object.hasOwn(data, "gender")) target.gender = data.gender;
+  if (Object.hasOwn(data, "phoneCountryCode")) target.phoneCountryCode = data.phoneCountryCode;
+  if (Object.hasOwn(data, "phoneNationalNumber")) target.phoneNationalNumber = data.phoneNationalNumber;
   if (Object.hasOwn(data, "phone")) target.phone = data.phone;
   if (Object.hasOwn(data, "email")) target.email = data.email;
   if (Object.hasOwn(data, "address")) target.address = data.address;
@@ -27,6 +29,8 @@ export function applyPatientUpdate(target: PatientData, data: PatientData) {
   if (Object.hasOwn(data, "nationality")) target.nationality = data.nationality;
   if (Object.hasOwn(data, "religion")) target.religion = data.religion;
   if (Object.hasOwn(data, "emergencyName")) target.emergencyName = data.emergencyName;
+  if (Object.hasOwn(data, "emergencyPhoneCountryCode")) target.emergencyPhoneCountryCode = data.emergencyPhoneCountryCode;
+  if (Object.hasOwn(data, "emergencyPhoneNationalNumber")) target.emergencyPhoneNationalNumber = data.emergencyPhoneNationalNumber;
   if (Object.hasOwn(data, "emergencyPhone")) target.emergencyPhone = data.emergencyPhone;
   if (Object.hasOwn(data, "emergencyRelationship")) target.emergencyRelationship = data.emergencyRelationship;
 }

@@ -81,6 +81,16 @@ describe("Combobox accessibility", () => {
     expect(screen.getAllByRole("combobox", { name: "Choose fruit" }).some((element) => element.tagName === "INPUT")).toBe(true);
   });
 
+  it("closes searchable dropdowns after pointer selection", () => {
+    render(<StatefulCombobox />);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Fruit" }));
+    fireEvent.pointerDown(screen.getByRole("option", { name: "Apple" }));
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Fruit" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("keeps non-searchable selection keyboard accessible", () => {
     render(<StatefulCombobox searchable={false} />);
 
@@ -93,5 +103,15 @@ describe("Combobox accessibility", () => {
 
     fireEvent.click(screen.getByRole("combobox", { name: "Fruit" }));
     expect(screen.getByRole("option", { name: "Cherry" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("closes non-searchable dropdowns after pointer selection", () => {
+    render(<StatefulCombobox searchable={false} />);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Fruit" }));
+    fireEvent.pointerDown(screen.getByRole("option", { name: "Apple" }));
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Fruit" })).toHaveAttribute("aria-expanded", "false");
   });
 });

@@ -6,7 +6,7 @@ import { defaultLocale, localeStorageKey } from "@/i18n/locale";
 
 describe("patientSchema", () => {
   it("accepts exactly the assignment fields", () => {
-    const keys = Object.keys(patientSchema.innerType().shape).sort();
+    const keys = Object.keys(patientSchema.innerType().innerType().shape).sort();
     expect(keys).toEqual(
       [
         "address",
@@ -14,6 +14,8 @@ describe("patientSchema", () => {
         "email",
         "emergencyName",
         "emergencyPhone",
+        "emergencyPhoneCountryCode",
+        "emergencyPhoneNationalNumber",
         "emergencyRelationship",
         "firstName",
         "gender",
@@ -21,6 +23,8 @@ describe("patientSchema", () => {
         "middleName",
         "nationality",
         "phone",
+        "phoneCountryCode",
+        "phoneNationalNumber",
         "preferredLanguage",
         "religion",
         "structuredAddress"
@@ -45,21 +49,27 @@ describe("patientSchema", () => {
       lastName: "B",
       dateOfBirth: "2000-01-01",
       gender: "male",
+      phoneCountryCode: "+66",
+      phoneNationalNumber: "0812345678",
       phone: "08-1234-5678",
       email: "a@example.com",
       address: formatStructuredAddress(structuredAddress!),
       structuredAddress,
       preferredLanguage: "th",
       nationality: "Thai",
+      emergencyPhoneCountryCode: "+66",
+      emergencyPhoneNationalNumber: "812345678",
       emergencyPhone: "+66812345678"
     });
-    expect(valid.success && valid.data.phone).toBe("0812345678");
+    expect(valid.success && valid.data.phone).toBe("+66812345678");
 
     const invalid = createPatientSchema("en").safeParse({
       firstName: "A",
       lastName: "B",
       dateOfBirth: "2999-01-01",
       gender: "Male",
+      phoneCountryCode: "+66",
+      phoneNationalNumber: "+66812345678",
       phone: "abc0812345678",
       email: "a@example.com",
       address: "wrong",

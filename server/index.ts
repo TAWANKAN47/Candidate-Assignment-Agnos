@@ -16,6 +16,7 @@ import {
   type TimelineItem
 } from "../lib/session";
 import { applyPatientUpdate, patientUpdatePayloadSchema } from "./patient-update";
+import { canModifyPatientSession } from "./session-protection";
 import { addOrUpdateTimeline, timelineLimit } from "./timeline";
 
 type InterServerEvents = Record<string, never>;
@@ -45,6 +46,8 @@ const fieldLabels: Record<keyof PatientData, string> = {
   lastName: "Last Name",
   dateOfBirth: "Date of Birth",
   gender: "Gender",
+  phoneCountryCode: "Phone Number",
+  phoneNationalNumber: "Phone Number",
   phone: "Phone Number",
   email: "Email",
   address: "Address",
@@ -53,6 +56,8 @@ const fieldLabels: Record<keyof PatientData, string> = {
   nationality: "Nationality",
   religion: "Religion",
   emergencyName: "Emergency Contact Name",
+  emergencyPhoneCountryCode: "Emergency Contact Phone",
+  emergencyPhoneNationalNumber: "Emergency Contact Phone",
   emergencyPhone: "Emergency Contact Phone",
   emergencyRelationship: "Emergency Contact Relationship"
 };
@@ -139,6 +144,7 @@ io.on("connection", (socket) => {
     const payload = optionalSessionPayloadSchema.safeParse(input);
     if (!payload.success) return;
     const session = getSession(payload.data.sessionId);
+    [...socket.rooms].filter((room) => room.startsWith("patient:")).forEach((room) => socket.leave(room));
     socket.data.sessionId = session.sessionId;
     socket.join(`patient:${session.sessionId}`);
     socket.emit("session:created", { sessionId: session.sessionId });
@@ -165,6 +171,7 @@ io.on("connection", (socket) => {
     const payload = patientUpdatePayloadSchema.safeParse(input);
     if (!payload.success) return;
     const session = getSession(payload.data.sessionId);
+    if (!canModifyPatientSession(getStatus(session))) return;
     const beforeStatus = getStatus(session);
     const nextData = { ...session.data };
     applyPatientUpdate(nextData, payload.data.data);
@@ -182,6 +189,7 @@ io.on("connection", (socket) => {
     const payload = sessionPayloadSchema.safeParse(input);
     if (!payload.success) return;
     const session = getSession(payload.data.sessionId);
+    if (!canModifyPatientSession(getStatus(session))) return;
     if (!serverPatientDataSchema.safeParse(session.data).success) return;
     session.submittedAt = new Date().toISOString();
     session.status = "submitted";
@@ -195,6 +203,7 @@ io.on("connection", (socket) => {
     const payload = sessionPayloadSchema.safeParse(input);
     if (!payload.success) return;
     const session = getSession(payload.data.sessionId);
+    if (!canModifyPatientSession(getStatus(session))) return;
     session.data = {};
     session.status = "waiting";
     session.lastUpdatedAt = new Date().toISOString();
