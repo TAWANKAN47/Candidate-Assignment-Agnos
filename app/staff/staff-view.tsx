@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowLeft, CalendarClock, ClipboardList, Clock3, FileText, HeartPulse, IdCard, Printer, Search, Shield, UserRound } from "lucide-react";
+import { Activity, Ambulance, ArrowLeft, CalendarClock, ClipboardList, Clock3, FileText, HeartPulse, IdCard, Phone, Printer, Search, UserRound } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
@@ -64,7 +64,7 @@ function staffSections(locale: Locale): { title: string; icon: typeof UserRound;
     },
     {
       title: text.sections.contact,
-      icon: IdCard,
+      icon: Phone,
       columns: "sm:grid-cols-2",
       fields: [
         { key: "phone", label: fields.phone, value: (data) => data.phone, required: true, highlight: "phone" },
@@ -79,7 +79,7 @@ function staffSections(locale: Locale): { title: string; icon: typeof UserRound;
     },
     {
       title: text.sections.emergency,
-      icon: Shield,
+      icon: Ambulance,
       columns: "sm:grid-cols-2 2xl:grid-cols-3",
       fields: [
         { key: "emergencyName", label: fields.emergencyName, value: (data) => data.emergencyName, highlight: "emergencyName" },
