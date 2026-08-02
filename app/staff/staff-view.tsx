@@ -156,8 +156,8 @@ export function StaffView() {
   }, [query, sessions]);
 
   return (
-    <div className="min-h-dvh bg-slate-50 text-slate-950">
-      <header className="no-print border-b bg-white">
+    <div className="min-h-dvh bg-slate-50 text-slate-950 lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden">
+      <header className="no-print shrink-0 border-b bg-white">
         <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-3">
             <div className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-700">
@@ -179,12 +179,12 @@ export function StaffView() {
         </div>
       </header>
 
-      <main className="grid gap-5 px-4 py-5 sm:px-6 lg:px-8">
+      <main className="grid gap-5 px-4 py-5 sm:px-6 lg:min-h-0 lg:flex-1 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden lg:px-8">
         <div className="no-print">
           <SummaryCards locale={locale} />
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(500px,1fr)_minmax(280px,340px)]">
+        <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(500px,1fr)_minmax(280px,340px)]">
           <aside className="no-print rounded-2xl border bg-white shadow-sm" aria-label={text.activeSessions}>
             <div className="grid gap-3 border-b p-4">
               <div>
@@ -237,8 +237,8 @@ export function StaffView() {
             <Details highlightedField={highlightedField} locale={locale} />
           </section>
 
-          <aside className="no-print flex min-h-0 flex-col rounded-2xl border bg-white shadow-sm lg:col-span-2 lg:h-[calc(100dvh-286px)] xl:col-span-1 xl:h-[calc(100dvh-220px)]">
-            <div className="border-b p-5">
+          <aside className="no-print flex min-h-0 flex-col rounded-2xl border bg-white shadow-sm lg:col-span-2 lg:h-full xl:col-span-1">
+            <div className="shrink-0 border-b p-5">
               <h2 className="font-semibold">{text.activity}</h2>
             </div>
             <div className="grid max-h-[420px] min-h-0 gap-3 overflow-y-auto p-4 text-sm lg:max-h-none lg:flex-1" tabIndex={0} aria-label={text.activity}>
